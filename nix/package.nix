@@ -10,6 +10,8 @@
   makeWrapper,
   wrapGAppsHook3,
   addDriverRunpath,
+  writeText,
+  inter,
   xdg-utils,
   alsa-lib,
   at-spi2-atk,
@@ -82,6 +84,18 @@ let
     libxrandr
     libxshmfence
   ];
+
+  # Mast's UI and pages are set in Inter (mast_pages.cc, mast-theme.patch), which most
+  # systems don't have: without it they fell back to DejaVu Sans. The system's own font
+  # settings, plus Inter.
+  fontsConf = writeText "mast-fonts.conf" ''
+    <?xml version="1.0"?>
+    <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+    <fontconfig>
+      <include ignore_missing="yes">/etc/fonts/fonts.conf</include>
+      <dir>${inter}/share/fonts</dir>
+    </fontconfig>
+  '';
 in
 stdenv.mkDerivation {
   pname = "mast";
@@ -133,7 +147,8 @@ stdenv.mkDerivation {
     makeWrapper $out/lib/mast/chrome $out/bin/mast \
       "''${gappsWrapperArgs[@]}" \
       --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath libs}:${addDriverRunpath.driverLink}/lib \
-      --prefix PATH : ${lib.makeBinPath [ xdg-utils ]}
+      --prefix PATH : ${lib.makeBinPath [ xdg-utils ]} \
+      --set FONTCONFIG_FILE ${fontsConf}
   '';
 
   meta = {
