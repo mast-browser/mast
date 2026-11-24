@@ -24,6 +24,24 @@ curl -fsSL https://github.com/mast-browser/mast/releases/latest/download/install
 
 64-bit Linux. On Debian, Ubuntu, Fedora and openSUSE, updates then come with the system's own.
 
+### NixOS
+
+Add Mast to your flake:
+
+```nix
+# flake.nix
+inputs.mast = {
+  url = "github:mast-browser/mast";
+  inputs.nixpkgs.follows = "nixpkgs";
+};
+
+# configuration.nix (with inputs passed to your modules)
+environment.systemPackages = [ inputs.mast.packages.x86_64-linux.default ];
+```
+
+Update it with the rest of your system: `nix flake update mast`, then `nixos-rebuild switch`.
+To try it first: `nix run github:mast-browser/mast`.
+
 ## What it does
 
 - **Block**: pick a length of time and every distraction category closes until it's over.
@@ -39,4 +57,4 @@ The browser is built on a rented server from `browser/` (see [`browser/docs/RELE
 ## Licence
 
 [GPL-3.0](LICENSE). Mast builds on Chromium and ungoogled-chromium, whose code keeps its
-BSD-style notices. The pictures are NASA's ([credits](browser/wallpapers/CREDITS.md)).
+BSD-style notices. The built-in backgrounds are public-domain paintings ([credits](browser/wallpapers/CREDITS.md)).

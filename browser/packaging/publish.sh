@@ -56,9 +56,12 @@ gh release edit "$TAG" --repo "$REPO" --draft=false --latest >/dev/null
 log "published: https://github.com/$REPO/releases/tag/$TAG"
 
 # CHANGELOG.md: this release's list goes under its version, and "Unreleased" starts empty.
+# nix/release.json: the Nix package (nix/package.nix) installs this release from now on.
 notes_py file "$CHANGES" "$FULL (Chromium $CHROMIUM)"
-git -C "$ROOT/.." commit -q -m "docs: CHANGELOG for $FULL" -- CHANGELOG.md &&
-	log "CHANGELOG.md: filed under $FULL and committed (push it with the rest)"
+uv run --no-project --quiet python "$ROOT/packaging/nix_release.py" "$OUT/mast-linux-x86_64.tar.xz" "$FULL" "$REPO" \
+	"$ROOT/../nix/release.json"
+git -C "$ROOT/.." commit -q -m "release: $FULL (CHANGELOG, Nix package)" -- CHANGELOG.md nix/release.json &&
+	log "CHANGELOG.md and nix/release.json: $FULL, committed (push it with the rest)"
 
 # GitHub Pages: the gh-pages branch holds the dnf/zypper source and a copy of the key and
 # installer. Rewritten each release (only the newest metadata is ever needed).

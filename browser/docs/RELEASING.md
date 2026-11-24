@@ -57,6 +57,7 @@ numbers, so their daily check never reports 0.x; running install.sh again moves 
 | `.rpm` (Fedora, RHEL-likes) | With the system's updates: the package installs `/etc/yum.repos.d/mast.repo`, whose `gpgkey=` dnf trusts (install.sh imports it beforehand) | Every RPM is signed |
 | `.rpm` on openSUSE | Mast's daily check, like the tarball (zypper can't use the source) | The same signed RPM |
 | Tarball (`~/.local/opt/mast`) | Mast checks `latest.json` once a day and says when a release is newer, with the update command to copy (install.sh again) | install.sh verifies `SHA256SUMS.asc` with the key built into it (when GnuPG is installed), then each file's SHA256 |
+| NixOS (the repo's flake, `nix/package.nix`) | `nix flake update mast`, then `nixos-rebuild switch`: publish.sh commits each release's version and tarball hash to `nix/release.json`, so main always names the newest. Mast's own check stays off (the store is read-only) | Nix checks the tarball against the hash in `nix/release.json` |
 
 ## Where things are served from
 

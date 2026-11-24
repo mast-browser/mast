@@ -159,9 +159,12 @@ class Checker {
               exists("/etc/apt/sources.list.d/mast.sources") ||
               (exists("/etc/yum.repos.d/mast.repo") &&
                (exists("/usr/bin/dnf") || exists("/usr/bin/dnf5")));
-          installed.check = !((base::StartsWith(dir.value(), "/opt/") ||
-                               base::StartsWith(dir.value(), "/usr/")) &&
-                              system_updates);
+          // NixOS (nix/package.nix): the store is read-only and Nix updates it
+          // (nix flake update, then nixos-rebuild switch).
+          const bool nix = base::StartsWith(dir.value(), "/nix/store/");
+          installed.check = !nix && !((base::StartsWith(dir.value(), "/opt/") ||
+                                       base::StartsWith(dir.value(), "/usr/")) &&
+                                      system_updates);
           return installed;
         }),
         base::BindOnce(&Checker::OnInstalled, base::Unretained(this)));

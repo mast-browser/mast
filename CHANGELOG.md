@@ -6,6 +6,7 @@ release's version (docs/RELEASING.md).
 
 ## Unreleased
 
+- NixOS: install Mast from its flake (`github:mast-browser/mast`) and update it with the rest of the system. See the README.
 ## 0.1.0 (Chromium 157.0.8103.78)
 
 - New version numbers: this is Mast 0.1.0, built on Chromium 157.0.8103.78. Releases count up from here (0.1.1, 0.1.2 …) instead of carrying Chromium's version and a timestamp.
