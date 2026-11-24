@@ -552,7 +552,7 @@ edit(T, "ui/views/style/platform_style.h", lambda t: once(t,
     'static constexpr bool kUseRipples = !BUILDFLAG(IS_MAC);',
     'static constexpr bool kUseRipples = false;  // Mast: no ink ripples.'))
 edit(T, "ui/base/webui/web_ui_util.cc", lambda t: once(t,
-    'return "Roboto, " + GetFontFamily();', 'return "Inter, " + GetFontFamily();'))
+    'return "Roboto, " + GetFontFamily();', 'return "Inter, \\"Inter Variable\\", " + GetFontFamily();'))
 
 # Native UI shape (docs/NATIVE-UI.md). The omnibox focus ring gets its own colour id,
 # which skips Chromium's 3:1 contrast lift, and a 1px halo: a hairline, not a glow.
@@ -574,10 +574,30 @@ def radii(t):
     return t
 edit(T, "ui/views/layout/layout_provider.cc", radii)
 
-# Inter for the native UI too (fontconfig falls back to the system sans without it).
+# Inter for the native UI too. "Inter Variable" is the name of the variable fonts Mast ships
+# beside the browser (fonts/, remote/build.sh): every weight in 1.8 MB, where the static set
+# named "Inter" is 13 MB.
 edit(T, "ui/gfx/platform_font_skia.cc", lambda t: once(t,
     '    params = linux_ui->GetDefaultFontRenderParams();\n',
-    '    params = linux_ui->GetDefaultFontRenderParams();\n    family = "Inter";  // Mast\n'))
+    '    params = linux_ui->GetDefaultFontRenderParams();\n    family = "Inter Variable";  // Mast\n'))
+# ...and the fonts themselves: mast-fonts/ beside the browser joins the system's fonts when
+# fontconfig starts (as ChromeOS adds Google Sans here), so Inter shows on systems that
+# don't have it installed, in the UI and in pages alike.
+edit(T, "ui/gfx/linux/fontconfig_util.cc", lambda t: once(once(t,
+    '#include "base/check_op.h"\n',
+    '#include "base/check_op.h"\n#include "base/base_paths.h"\n#include "base/files/file_path.h"\n'
+    '#include "base/files/file_util.h"\n#include "base/path_service.h"\n'),
+    '    // Set rescan interval to 0 to disable re-scan. Re-scanning in the\n',
+    '    // Mast: its UI and page font (Inter), shipped beside the browser.\n'
+    '    base::FilePath mast_exe_dir;\n'
+    '    if (base::PathService::Get(base::DIR_EXE, &mast_exe_dir)) {\n'
+    '      const base::FilePath mast_fonts = mast_exe_dir.Append("mast-fonts");\n'
+    '      if (base::PathExists(mast_fonts)) {\n'
+    '        FcConfigAppFontAddDir(\n'
+    '            fc_config_, reinterpret_cast<const FcChar8*>(mast_fonts.value().c_str()));\n'
+    '      }\n'
+    '    }\n\n'
+    '    // Set rescan interval to 0 to disable re-scan. Re-scanning in the\n'))
 
 # Tabs: 8px top corners and a small foot (4px) instead of Chrome's swoop. The foot
 # stays above the separator width so the tab-overlap maths stays positive.

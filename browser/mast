@@ -272,7 +272,7 @@ cmd__guard() {
 push() {
 	log "pushing code"
 	rsync -az --timeout=120 --delete -e "ssh ${SSH_OPTS[*]}" \
-		"$ROOT/remote" "$ROOT/patches" "$ROOT/src" "$ROOT/wallpapers" "$ROOT/chromium_version.txt" "$ROOT/ungoogled_version.txt" \
+		"$ROOT/remote" "$ROOT/patches" "$ROOT/src" "$ROOT/wallpapers" "$ROOT/fonts" "$ROOT/chromium_version.txt" "$ROOT/ungoogled_version.txt" \
 		"$ROOT/../blocklist" "root@$HOST:mast/"
 }
 

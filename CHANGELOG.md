@@ -6,6 +6,7 @@ release's version (docs/RELEASING.md).
 
 ## Unreleased
 
+- Mast's font, Inter, now comes with the browser, so its pages and menus look the same on every system. Where Inter wasn't installed (Ubuntu, for one), they fell back to the system's font.
 - NixOS: install Mast from its flake (`github:mast-browser/mast`) and update it with the rest of the system. See the README.
 
 ## 0.1.0 (Chromium 157.0.8103.78)

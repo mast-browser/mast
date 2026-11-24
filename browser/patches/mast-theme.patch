@@ -119,7 +119,7 @@ diff -ruN a/ui/base/webui/web_ui_util.cc b/ui/base/webui/web_ui_util.cc
  std::string GetFontFamilyMd() {
  #if BUILDFLAG(IS_LINUX)
 -  return "Roboto, " + GetFontFamily();
-+  return "Inter, " + GetFontFamily();
++  return "Inter, \"Inter Variable\", " + GetFontFamily();
  #else
    return GetFontFamily();
  #endif
@@ -208,6 +208,37 @@ diff -ruN a/ui/color/color_provider_manager.cc b/ui/color/color_provider_manager
      iter = color_providers_.emplace(key, std::move(provider)).first;
      RecordColorProviderCacheSize(static_cast<int>(color_providers_.size()));
    }
+diff -ruN a/ui/gfx/linux/fontconfig_util.cc b/ui/gfx/linux/fontconfig_util.cc
+--- a/ui/gfx/linux/fontconfig_util.cc
++++ b/ui/gfx/linux/fontconfig_util.cc
+@@ -7,6 +7,10 @@
+ #include <fontconfig/fontconfig.h>
+ 
+ #include "base/check_op.h"
++#include "base/base_paths.h"
++#include "base/files/file_path.h"
++#include "base/files/file_util.h"
++#include "base/path_service.h"
+ #include "base/environment.h"
+ #include "base/feature_list.h"
+ #include "base/memory/raw_ptr.h"
+@@ -82,6 +86,16 @@
+     }
+ #endif  // BUILDFLAG(IS_CHROMEOS)
+ 
++    // Mast: its UI and page font (Inter), shipped beside the browser.
++    base::FilePath mast_exe_dir;
++    if (base::PathService::Get(base::DIR_EXE, &mast_exe_dir)) {
++      const base::FilePath mast_fonts = mast_exe_dir.Append("mast-fonts");
++      if (base::PathExists(mast_fonts)) {
++        FcConfigAppFontAddDir(
++            fc_config_, reinterpret_cast<const FcChar8*>(mast_fonts.value().c_str()));
++      }
++    }
++
+     // Set rescan interval to 0 to disable re-scan. Re-scanning in the
+     // background is a source of thread safety issues.
+     // See in http://crbug.com/1004254.
 diff -ruN a/ui/gfx/platform_font_skia.cc b/ui/gfx/platform_font_skia.cc
 --- a/ui/gfx/platform_font_skia.cc
 +++ b/ui/gfx/platform_font_skia.cc
@@ -215,7 +246,7 @@ diff -ruN a/ui/gfx/platform_font_skia.cc b/ui/gfx/platform_font_skia.cc
      style = font_settings.style;
      weight = static_cast<Font::Weight>(font_settings.weight);
      params = linux_ui->GetDefaultFontRenderParams();
-+    family = "Inter";  // Mast
++    family = "Inter Variable";  // Mast
    } else
  #endif
        if (default_font_description_) {

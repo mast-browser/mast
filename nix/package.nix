@@ -86,8 +86,9 @@ let
   ];
 
   # Mast's UI and pages are set in Inter (mast_pages.cc, mast-theme.patch), which most
-  # systems don't have: without it they fell back to DejaVu Sans. The system's own font
-  # settings, plus Inter.
+  # systems don't have: without it they fell back to DejaVu Sans. From 0.1.1 the browser
+  # ships Inter beside itself (mast-fonts/) and adds it at startup; 0.1.0 gets the
+  # system's own font settings plus nixpkgs' Inter.
   fontsConf = writeText "mast-fonts.conf" ''
     <?xml version="1.0"?>
     <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
@@ -148,7 +149,7 @@ stdenv.mkDerivation {
       "''${gappsWrapperArgs[@]}" \
       --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath libs}:${addDriverRunpath.driverLink}/lib \
       --prefix PATH : ${lib.makeBinPath [ xdg-utils ]} \
-      --set FONTCONFIG_FILE ${fontsConf}
+      ${lib.optionalString (lib.versionOlder release.version "0.1.1") "--set FONTCONFIG_FILE ${fontsConf}"}
   '';
 
   meta = {

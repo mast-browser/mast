@@ -106,13 +106,17 @@ say "Feeds"
 python3 "$M/remote/build-feeds.py" "$M/blocklist" "$OUT/mast-feeds" /root/mast-feeds-cache
 # Customize's built-in pictures (wallpapers/CREDITS.md), beside the browser too.
 rm -rf "$OUT/mast-wallpapers" && mkdir -p "$OUT/mast-wallpapers" && cp "$M"/wallpapers/*.jpg "$OUT/mast-wallpapers/"
+# Inter, Mast's UI and page font (fonts/), for systems that don't have it: the browser adds
+# this folder to its fonts at startup (ui/gfx/linux/fontconfig_util.cc, mast-theme.patch).
+# Its licence (SIL OFL 1.1) travels with it.
+rm -rf "$OUT/mast-fonts" && mkdir -p "$OUT/mast-fonts" && cp "$M"/fonts/* "$OUT/mast-fonts/"
 say "Packaging"
 cd "$OUT"
 # Chromium looks for the helper beside the browser under this name.
 cp -p chrome_sandbox chrome-sandbox
 keep=()
 for f in chrome chrome-sandbox chrome_crashpad_handler icudtl.dat vk_swiftshader_icd.json locales MEIPreload \
-	mast-feeds mast-wallpapers *.pak *.bin *.so *.so.*; do
+	mast-feeds mast-wallpapers mast-fonts *.pak *.bin *.so *.so.*; do
 	[ -e "$f" ] && keep+=("$f")
 done
 mkdir -p "$M/dist"
