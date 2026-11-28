@@ -14,14 +14,29 @@ import sys
 
 
 def load_netlog(path):
-    """The net log as JSON; one cut short (Chromium killed mid-write) is closed first."""
-    text = open(path, errors="replace").read()
-    for tail in ("", "]}", "\n]}"):
+    """The net log's constants and events. Chromium writes the constants first, then one
+    event per line, so a log cut short (Chromium killed mid-write) still reads: every
+    complete line is an event."""
+    constants, events = {}, []
+    with open(path, errors="replace") as f:
+        head = []
+        for line in f:
+            if line.lstrip().startswith('"events"'):
+                break
+            head.append(line)
+        text = "".join(head).strip().rstrip(",")
         try:
-            return json.loads(text.rstrip().rstrip(",") + tail if tail else text)
+            constants = json.loads(text + "}").get("constants", {})
         except ValueError:
-            continue
-    return None
+            pass
+        for line in f:
+            line = line.strip().rstrip(",")
+            if line.startswith("{") and line.endswith("}"):
+                try:
+                    events.append(json.loads(line))
+                except ValueError:
+                    pass
+    return {"constants": constants, "events": events} if constants else None
 
 
 def audit(netlog_path):
