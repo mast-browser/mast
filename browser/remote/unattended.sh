@@ -2,7 +2,7 @@
 # A build nobody watches (./mast unattended): build, screenshots, then snapshot this builder
 # and delete it, all from here, so the laptop can be off. ./mast collect picks it up later.
 #
-#   bash remote/unattended.sh <server name> <deadline hours>
+#   bash remote/unattended.sh <server name> <deadline hours> [screenshot areas]
 #
 # The Hetzner token arrives in /root/.mast-hcloud-token. It is read into memory and the file
 # deleted before anything else, so it is never in a snapshot, a log or a later boot. Past the
@@ -10,6 +10,7 @@
 set -u
 NAME=$1
 DEADLINE=$(($(date +%s) + ${2:-8} * 3600))
+AREAS=${3:-basics}  # remote/shots.py's areas, comma-separated
 M=/root/mast
 say() { echo "[$(date '+%F %T')] $*"; }
 
@@ -36,8 +37,8 @@ fi
 	bash remote/build.sh > build.log 2>&1
 	echo $? > build.status
 	if [ "$(cat build.status)" = 0 ]; then
-		say "screenshots"
-		bash remote/shots.sh > shots.log 2>&1
+		say "screenshots: $AREAS"
+		MAST_SHOTS="$AREAS" bash remote/shots.sh > shots.log 2>&1
 		echo $? > shots.status
 	fi
 ) &

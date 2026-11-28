@@ -5,7 +5,7 @@
 #
 #   ./mast up [type]        create the builder (from the last snapshot if there is one)
 #   ./mast build            push code → build → download (creates the builder if needed)
-#   ./mast unattended       build + shots on the builder, which then snapshots and deletes itself (laptop can be off)
+#   ./mast unattended [areas]  build + shots of those areas on the builder, which then snapshots and deletes itself (laptop can be off)
 #   ./mast collect          after an unattended build: download the browser, patches and shots, then down --keep
 #   ./mast down [--keep]    delete the builder; --keep snapshots its disk first
 #   ./mast resize <type>    change server type, keeping the disk
@@ -15,7 +15,7 @@
 #   ./mast release [--dry-run]  hand the builder's build to GitHub, which packages, signs and publishes it
 #   ./mast package          (by hand) turn the download into a signed release (.deb, .rpm, tarball, apt/dnf sources) -> dist/release/
 #   ./mast publish          (by hand) put dist/release online (GitHub release + Pages); apt/dnf users then update
-#   ./mast shots            screenshot fixed UI scenes on the builder (Xvfb) -> shots/<time>/
+#   ./mast shots [areas]    screenshot UI scenes on the builder (Xvfb) -> shots/<time>/; areas: --list (default basics, or all)
 #   ./mast check-patches    check every make-patches.py anchor locally, on both bases (no builder, no cost)
 #   ./mast check-rebase <v> what moving to Chromium <v> breaks, before building (local, no cost)
 #   ./mast status | ssh | logs [job] | destroy
@@ -357,6 +357,8 @@ pull_patches() {
 # snapshots the builder and deletes it, so it needs the Hetzner token (in memory there, never
 # on its disk past the first second). MAST_DEADLINE_HOURS (default 8) caps the whole run.
 cmd_unattended() {
+	local areas
+	areas=$(shot_areas "$@")
 	check_budget
 	cmd_up
 	HOST=$(server_ip)
@@ -367,13 +369,13 @@ cmd_unattended() {
 		/^ *token *=/ && n == c { gsub(/["[:space:]]/, ""); sub(/^token=/, ""); print; exit }' ~/.config/hcloud/cli.toml)}
 	[[ -n $token ]] || die "no Hetzner token found (hcloud context, or HCLOUD_TOKEN)"
 	printf '%s' "$token" | rssh "umask 077; cat > /root/.mast-hcloud-token"
-	rssh "cd ~/mast && rm -f build.status shots.status deadline.status && (setsid nohup bash remote/unattended.sh '$MAST_NAME' '${MAST_DEADLINE_HOURS:-8}' > ~/mast/unattended.log 2>&1 < /dev/null &)"
+	rssh "cd ~/mast && rm -f build.status shots.status deadline.status && (setsid nohup bash remote/unattended.sh '$MAST_NAME' '${MAST_DEADLINE_HOURS:-8}' '$areas' > ~/mast/unattended.log 2>&1 < /dev/null &)"
 	sleep 5
 	rssh "test ! -e /root/.mast-hcloud-token && pgrep -f 'remote/[u]nattended\.sh' >/dev/null" ||
 		die "the unattended job didn't start. Inspect with: ./mast ssh  (or ./mast down)"
 	# The builder deletes itself; the laptop's idle guard must not race it.
 	stop_guard
-	log "unattended build running; the builder snapshots and deletes itself (cap ${MAST_DEADLINE_HOURS:-8} h)"
+	log "unattended build running (screenshots: $areas); the builder snapshots and deletes itself (cap ${MAST_DEADLINE_HOURS:-8} h)"
 	log "you can shut the laptop down. Later: ./mast collect"
 }
 
@@ -463,14 +465,36 @@ cmd_release() {
 	fi
 }
 
+# Screenshot areas (remote/shots.py's @area list): the arguments, comma- or space-separated,
+# checked here so a typo fails before the builder runs. None: "basics". "all": every area.
+shot_areas() {
+	local known a out=()
+	known=$(sed -n 's/^@area("\([a-z]*\)".*/\1/p' "$ROOT/remote/shots.py")
+	for a in ${*//,/ }; do
+		[[ $a == all ]] && { echo all; return; }
+		grep -qxF "$a" <<<"$known" || die "no screenshot area \"$a\". Areas: $(tr '\n' ' ' <<<"$known")(or all)"
+		out+=("$a")
+	done
+	((${#out[@]})) || out=(basics)
+	local IFS=,
+	echo "${out[*]}"
+}
+
+shot_list() {
+	sed -n 's/^@area("\([a-z]*\)", "\(.*\)")$/  \1\t\2/p' "$ROOT/remote/shots.py" | expand -t 14
+}
+
 cmd_shots() {
+	[[ ${1:-} == --list ]] && { shot_list; return; }
+	local areas
+	areas=$(shot_areas "$@")
 	ensure_key_and_firewall
 	[[ -n $HOST ]] || HOST=$(server_ip)
 	local dir
 	dir="$ROOT/shots/$(date +%m%d-%H%M%S)"
 	rsync -az --timeout=120 -e "ssh ${SSH_OPTS[*]}" "$ROOT/remote/" "root@$HOST:mast/remote/"
-	log "rendering scenes on the builder"
-	rssh "bash ~/mast/remote/shots.sh"
+	log "rendering scenes on the builder: $areas"
+	rssh "MAST_SHOTS='$areas' bash ~/mast/remote/shots.sh"
 	mkdir -p "$dir"
 	rsync -az --timeout=120 -e "ssh ${SSH_OPTS[*]}" --include="*.jpg" --include="*.json" --include="*.txt" --exclude="*" "root@$HOST:mast/shots/" "$dir/"
 	ln -sfn "$dir" "$ROOT/shots/latest"
