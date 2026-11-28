@@ -33,7 +33,7 @@ sleep 30
 kill -TERM $CHROME; sleep 5
 python3 /root/mast/remote/netcheck.py "$SHOTS/netlog.json" "$SHOTS/chrome.log" > "$SHOTS/network.txt" || true
 cat "$SHOTS/network.txt"
-rm -f "$SHOTS/netlog.json"
+rm -f "$SHOTS/netlog.json" "$SHOTS/audit-end"
 cd "$SHOTS"
 for f in *.png; do convert "$f" -quality 85 "${f%.png}.jpg" && rm "$f"; done
 ls

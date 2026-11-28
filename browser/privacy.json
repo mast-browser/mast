@@ -108,6 +108,7 @@
     "safe_browsing_mode": {"value": 1, "why": "Compiled in, off by pref: no rebasing ungoogled's 5,600 lines to compile it out", "brave": "Same: build/args/desktop_defaults.gni"},
     "disable_fieldtrial_testing_config": {"value": true, "why": "No built-in field trial configs", "brave": "Same: build/args/brave_defaults.gni"},
     "google_api_key": {"value": "", "why": "No Google API keys: keyed services can't authenticate"},
+    "use_official_google_api_keys": {"value": false, "why": "Never Google's own keys"},
     "google_default_client_id": {"value": "", "why": "No Google sign-in client"},
     "google_default_client_secret": {"value": "", "why": "No Google sign-in client"},
     "enable_hangout_services_extension": {"value": false, "why": "Google Meet's helper extension, the only user of WebRTC log uploads"},

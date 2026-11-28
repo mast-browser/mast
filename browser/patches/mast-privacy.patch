@@ -1,0 +1,287 @@
+diff -ruN a/chrome/app/chrome_main_delegate.cc b/chrome/app/chrome_main_delegate.cc
+--- a/chrome/app/chrome_main_delegate.cc
++++ b/chrome/app/chrome_main_delegate.cc
+@@ -1192,6 +1192,13 @@
+ }
+ 
+ std::optional<int> ChromeMainDelegate::BasicStartupComplete() {
++  // Mast: switches from privacy.json.
++  {
++    base::CommandLine* mast_command_line = base::CommandLine::ForCurrentProcess();
++    if (!mast_command_line->HasSwitch("lso-url")) {
++      mast_command_line->AppendSwitchASCII("lso-url", "https://no-thanks.invalid");
++    }
++  }
+   crash_reporter::InitializeCrashKeys();
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+diff -ruN a/chrome/browser/domain_reliability/service_factory.cc b/chrome/browser/domain_reliability/service_factory.cc
+--- a/chrome/browser/domain_reliability/service_factory.cc
++++ b/chrome/browser/domain_reliability/service_factory.cc
+@@ -13,7 +13,7 @@
+ namespace {
+ 
+ // If Domain Reliability is enabled in the absence of a flag or field trial.
+-const bool kDefaultEnabled = true;
++const bool kDefaultEnabled = false;  // Mast: privacy.json
+ 
+ // The name and value of the field trial to turn Domain Reliability on.
+ const char kFieldTrialName[] = "DomRel-Enable";
+diff -ruN a/chrome/browser/glic/public/glic_enabling.cc b/chrome/browser/glic/public/glic_enabling.cc
+--- a/chrome/browser/glic/public/glic_enabling.cc
++++ b/chrome/browser/glic/public/glic_enabling.cc
+@@ -831,6 +831,8 @@
+ }
+ 
+ bool GlicGlobalEnabling::IsEnabledByGlobalCriteria() const {
++  // Mast: privacy.json
++  return false;
+   if (g_bypass_enablement_checks_for_testing) {
+     return true;
+   }
+diff -ruN a/chrome/browser/prefs/browser_prefs.cc b/chrome/browser/prefs/browser_prefs.cc
+--- a/chrome/browser/prefs/browser_prefs.cc
++++ b/chrome/browser/prefs/browser_prefs.cc
+@@ -2604,6 +2604,9 @@
+   ash::RegisterUserProfilePrefs(registry, locale);
+   ash::TokenHandleStore::RegisterPrefs(registry);
+ #endif
++  // Mast: privacy.json's pref defaults.
++  registry->SetDefaultPrefValue("safebrowsing.enabled", base::Value(false));
++  registry->SetDefaultPrefValue("translate.enabled", base::Value(false));
+ }
+ 
+ void RegisterScreenshotPrefs(PrefRegistrySimple* registry) {
+diff -ruN a/chrome/browser/preloading/preloading_prefs.cc b/chrome/browser/preloading/preloading_prefs.cc
+--- a/chrome/browser/preloading/preloading_prefs.cc
++++ b/chrome/browser/preloading/preloading_prefs.cc
+@@ -16,7 +16,7 @@
+     user_prefs::PrefRegistrySyncable* registry) {
+   registry->RegisterIntegerPref(
+       prefs::kNetworkPredictionOptions,
+-      static_cast<int>(NetworkPredictionOptions::kDefault),
++      static_cast<int>(NetworkPredictionOptions::kDisabled),  // Mast
+       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+ }
+ 
+diff -ruN a/chrome/common/chrome_features.cc b/chrome/common/chrome_features.cc
+--- a/chrome/common/chrome_features.cc
++++ b/chrome/common/chrome_features.cc
+@@ -173,7 +173,7 @@
+ #endif
+ 
+ // Controls the enablement of structured metrics on Windows, Linux, and Mac.
+-BASE_FEATURE(kChromeStructuredMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
++BASE_FEATURE(kChromeStructuredMetrics, base::FEATURE_DISABLED_BY_DEFAULT /* Mast: privacy.json */);
+ 
+ #if BUILDFLAG(IS_MAC)
+ // Defers Cocoa spellchecker initialization to a post-startup idle task on
+diff -ruN a/components/attribution_reporting/features.cc b/components/attribution_reporting/features.cc
+--- a/components/attribution_reporting/features.cc
++++ b/components/attribution_reporting/features.cc
+@@ -9,6 +9,6 @@
+ namespace attribution_reporting::features {
+ 
+ // Controls whether the Conversion Measurement API infrastructure is enabled.
+-BASE_FEATURE(kConversionMeasurement, base::FEATURE_ENABLED_BY_DEFAULT);
++BASE_FEATURE(kConversionMeasurement, base::FEATURE_DISABLED_BY_DEFAULT /* Mast: privacy.json */);
+ 
+ }  // namespace attribution_reporting::features
+diff -ruN a/components/autofill/core/common/autofill_debug_features.cc b/components/autofill/core/common/autofill_debug_features.cc
+--- a/components/autofill/core/common/autofill_debug_features.cc
++++ b/components/autofill/core/common/autofill_debug_features.cc
+@@ -140,7 +140,7 @@
+ // autofill server API url up to the parent "directory" of the "query" and
+ // "upload" resources.
+ // i.e., https://other.autofill.server:port/tbproxy/af/
+-BASE_FEATURE(kAutofillServerCommunication, base::FEATURE_ENABLED_BY_DEFAULT);
++BASE_FEATURE(kAutofillServerCommunication, base::FEATURE_DISABLED_BY_DEFAULT /* Mast: privacy.json */);
+ 
+ // When set to a non-zero value, the value is attached as an experiment ID to
+ // all predictions requests to the Autofill server, as if it were an active GWS
+diff -ruN a/components/gcm_driver/gcm_driver_desktop.cc b/components/gcm_driver/gcm_driver_desktop.cc
+--- a/components/gcm_driver/gcm_driver_desktop.cc
++++ b/components/gcm_driver/gcm_driver_desktop.cc
+@@ -1093,6 +1093,8 @@
+ 
+ GCMClient::Result GCMDriverDesktop::EnsureStarted(
+     GCMClient::StartMode start_mode) {
++  // Mast: privacy.json
++  return GCMClient::GCM_DISABLED;
+   DCHECK(ui_thread_->RunsTasksInCurrentSequence());
+ 
+   if (gcm_started_)
+diff -ruN a/components/lens/lens_features.cc b/components/lens/lens_features.cc
+--- a/components/lens/lens_features.cc
++++ b/components/lens/lens_features.cc
+@@ -24,7 +24,7 @@
+ #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+              base::FEATURE_DISABLED_BY_DEFAULT
+ #else
+-             base::FEATURE_ENABLED_BY_DEFAULT
++             base::FEATURE_DISABLED_BY_DEFAULT /* Mast: privacy.json */
+ #endif
+ );
+ 
+diff -ruN a/components/metrics/enabled_state_provider.cc b/components/metrics/enabled_state_provider.cc
+--- a/components/metrics/enabled_state_provider.cc
++++ b/components/metrics/enabled_state_provider.cc
+@@ -18,6 +18,8 @@
+ }  // namespace
+ 
+ bool EnabledStateProvider::IsReportingEnabled() const {
++  // Mast: privacy.json
++  return false;
+   // Disable metrics reporting when field trials are forced, as otherwise this
+   // would pollute experiment results in UMA. Note: This is done here and not
+   // in IsConsentGiven() as we do not want this to affect field trial entropy
+diff -ruN a/components/metrics/metrics_features.cc b/components/metrics/metrics_features.cc
+--- a/components/metrics/metrics_features.cc
++++ b/components/metrics/metrics_features.cc
+@@ -12,7 +12,7 @@
+ 
+ BASE_FEATURE(kStructuredMetrics,
+              "EnableStructuredMetrics",
+-             base::FEATURE_ENABLED_BY_DEFAULT);
++             base::FEATURE_DISABLED_BY_DEFAULT /* Mast: privacy.json */);
+ 
+ BASE_FEATURE(kFlushPersistentSystemProfileOnWrite,
+              base::FEATURE_DISABLED_BY_DEFAULT);
+diff -ruN a/components/network_time/network_time_tracker.cc b/components/network_time/network_time_tracker.cc
+--- a/components/network_time/network_time_tracker.cc
++++ b/components/network_time/network_time_tracker.cc
+@@ -74,7 +74,7 @@
+ #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_IOS)
+ BASE_FEATURE(kNetworkTimeServiceQuerying, base::FEATURE_DISABLED_BY_DEFAULT);
+ #else
+-BASE_FEATURE(kNetworkTimeServiceQuerying, base::FEATURE_ENABLED_BY_DEFAULT);
++BASE_FEATURE(kNetworkTimeServiceQuerying, base::FEATURE_DISABLED_BY_DEFAULT /* Mast: privacy.json */);
+ #endif
+ 
+ namespace {
+diff -ruN a/components/omnibox/browser/aim_eligibility_service_features.cc b/components/omnibox/browser/aim_eligibility_service_features.cc
+--- a/components/omnibox/browser/aim_eligibility_service_features.cc
++++ b/components/omnibox/browser/aim_eligibility_service_features.cc
+@@ -8,7 +8,7 @@
+ 
+ namespace omnibox {
+ 
+-BASE_FEATURE(kAimEnabled, base::FEATURE_ENABLED_BY_DEFAULT);
++BASE_FEATURE(kAimEnabled, base::FEATURE_DISABLED_BY_DEFAULT /* Mast: privacy.json */);
+ 
+ BASE_FEATURE(kAimServerEligibilityEnabled, base::FEATURE_ENABLED_BY_DEFAULT);
+ 
+diff -ruN a/components/optimization_guide/core/optimization_guide_features.cc b/components/optimization_guide/core/optimization_guide_features.cc
+--- a/components/optimization_guide/core/optimization_guide_features.cc
++++ b/components/optimization_guide/core/optimization_guide_features.cc
+@@ -57,7 +57,7 @@
+ 
+ // Enables the syncing of the Optimization Hints component, which provides
+ // hints for what optimizations can be applied on a page load.
+-BASE_FEATURE(kOptimizationHints, base::FEATURE_ENABLED_BY_DEFAULT);
++BASE_FEATURE(kOptimizationHints, base::FEATURE_DISABLED_BY_DEFAULT /* Mast: privacy.json */);
+ 
+ // Enables the prediction of optimization targets.
+ BASE_FEATURE(kOptimizationTargetPrediction, base::FEATURE_ENABLED_BY_DEFAULT);
+@@ -84,7 +84,7 @@
+ // Service.
+ BASE_FEATURE(kOptimizationGuideFetchingForSRP,
+              "OptimizationHintsFetchingSRP",
+-             base::FEATURE_ENABLED_BY_DEFAULT);
++             base::FEATURE_DISABLED_BY_DEFAULT /* Mast: privacy.json */);
+ 
+ // Kill switch for disabling model quality logging.
+ BASE_FEATURE(kModelQualityLogging, base::FEATURE_ENABLED_BY_DEFAULT);
+@@ -98,7 +98,7 @@
+ 
+ // Whether to enable model execution.
+ BASE_FEATURE(kOptimizationGuideModelExecution,
+-             base::FEATURE_ENABLED_BY_DEFAULT);
++             base::FEATURE_DISABLED_BY_DEFAULT /* Mast: privacy.json */);
+ 
+ // Whether the on device service is launched after a delay on startup to log
+ // metrics.
+diff -ruN a/components/optimization_guide/core/optimization_guide_permissions_util.cc b/components/optimization_guide/core/optimization_guide_permissions_util.cc
+--- a/components/optimization_guide/core/optimization_guide_permissions_util.cc
++++ b/components/optimization_guide/core/optimization_guide_permissions_util.cc
+@@ -39,6 +39,8 @@
+ bool IsUserPermittedToFetchFromRemoteOptimizationGuide(
+     bool is_off_the_record,
+     PrefService* pref_service) {
++  // Mast: privacy.json
++  return false;
+   if (is_off_the_record)
+     return false;
+ 
+diff -ruN a/components/privacy_sandbox/privacy_sandbox_features.cc b/components/privacy_sandbox/privacy_sandbox_features.cc
+--- a/components/privacy_sandbox/privacy_sandbox_features.cc
++++ b/components/privacy_sandbox/privacy_sandbox_features.cc
+@@ -9,7 +9,7 @@
+ namespace privacy_sandbox {
+ 
+ BASE_FEATURE(kEnforcePrivacySandboxAttestations,
+-             base::FEATURE_ENABLED_BY_DEFAULT);
++             base::FEATURE_DISABLED_BY_DEFAULT /* Mast: privacy.json */);
+ 
+ BASE_FEATURE(kDefaultAllowPrivacySandboxAttestations,
+              base::FEATURE_DISABLED_BY_DEFAULT);
+diff -ruN a/components/translate/core/browser/translate_language_list.cc b/components/translate/core/browser/translate_language_list.cc
+--- a/components/translate/core/browser/translate_language_list.cc
++++ b/components/translate/core/browser/translate_language_list.cc
+@@ -307,6 +307,8 @@
+ }
+ 
+ void TranslateLanguageList::SetResourceRequestsAllowed(bool allowed) {
++  // Mast: privacy.json
++  allowed = false;
+   resource_requests_allowed_ = allowed;
+   if (resource_requests_allowed_ && request_pending_) {
+     RequestLanguageList();
+diff -ruN a/components/translate/core/browser/translate_ranker_impl.cc b/components/translate/core/browser/translate_ranker_impl.cc
+--- a/components/translate/core/browser/translate_ranker_impl.cc
++++ b/components/translate/core/browser/translate_ranker_impl.cc
+@@ -89,7 +89,7 @@
+     "translate/2017/03/translate_ranker_model_20170329.pb.bin";
+ #endif
+ 
+-BASE_FEATURE(kTranslateRankerQuery, base::FEATURE_ENABLED_BY_DEFAULT);
++BASE_FEATURE(kTranslateRankerQuery, base::FEATURE_DISABLED_BY_DEFAULT /* Mast: privacy.json */);
+ BASE_FEATURE(kTranslateRankerEnforcement, base::FEATURE_ENABLED_BY_DEFAULT);
+ 
+ TranslateRankerFeatures::TranslateRankerFeatures() = default;
+diff -ruN a/components/variations/service/variations_service.cc b/components/variations/service/variations_service.cc
+--- a/components/variations/service/variations_service.cc
++++ b/components/variations/service/variations_service.cc
+@@ -732,6 +732,8 @@
+ }
+ 
+ void VariationsService::DoActualFetch() {
++  // Mast: privacy.json
++  return;
+   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+   // Normally, there shouldn't be a fetch in progress when this fires.
+   // However it's not impossible - for example if Chrome was paused (e.g. in a
+diff -ruN a/components/variations/variations_ids_provider.cc b/components/variations/variations_ids_provider.cc
+--- a/components/variations/variations_ids_provider.cc
++++ b/components/variations/variations_ids_provider.cc
+@@ -82,6 +82,8 @@
+ 
+ variations::mojom::VariationsHeadersPtr
+ VariationsIdsProvider::GetClientDataHeaders(bool is_signed_in) {
++  // Mast: privacy.json
++  return nullptr;
+   if (mode_ == Mode::kIgnoreSignedInState) {
+     is_signed_in = true;
+   } else if (mode_ == Mode::kDontSendSignedInVariations) {
+diff -ruN a/services/network/public/cpp/features.cc b/services/network/public/cpp/features.cc
+--- a/services/network/public/cpp/features.cc
++++ b/services/network/public/cpp/features.cc
+@@ -413,7 +413,7 @@
+ 
+ // https://github.com/patcg-individual-drafts/topics
+ // Kill switch for the Topics API.
+-BASE_FEATURE(kBrowsingTopics, base::FEATURE_ENABLED_BY_DEFAULT);
++BASE_FEATURE(kBrowsingTopics, base::FEATURE_DISABLED_BY_DEFAULT /* Mast: privacy.json */);
+ 
+ 
+ BASE_FEATURE(kIncreaseCookieAccessCacheSize, base::FEATURE_ENABLED_BY_DEFAULT);

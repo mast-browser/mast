@@ -233,6 +233,22 @@ def welcome():
     shot("48-welcome-done", settle=0.8)
 
 
+@area("audit", "Network audit: five idle minutes on a fresh profile, then Mast's own pages; every request checked")
+def audit():
+    # Brave's network audit, the Mast way (docs/BASE-PLAN.md): right after the welcome flow,
+    # before any website is opened. netcheck.py checks every request up to audit-end.
+    p.go("chrome://newtab")
+    time.sleep(int(os.environ.get("MAST_AUDIT_IDLE", "300")))
+    for url in ("chrome://settings", "chrome://settings/help", "chrome://mast", "chrome://newtab"):
+        p.go(url, 4)
+    p.js("document.getElementById('customize')?.click()")
+    time.sleep(3)
+    shot("audit-end-newtab")
+    with open(f"{OUT}/audit-end", "w") as f:
+        f.write(str(int(time.time() * 1000)))
+    p.go("chrome://newtab")
+
+
 @area("tabicon", "A new tab's icon while it opens (00 frames)")
 def tabicon():
     p.go("chrome://newtab")

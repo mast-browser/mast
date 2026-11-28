@@ -12,3 +12,10 @@ chrome_pgo_phase = 0
 proprietary_codecs = true
 ffmpeg_branding = "Chrome"
 treat_warnings_as_errors = false
+# From ungoogled-chromium's flags.gn, kept on the pristine-Chromium base (docs/BASE-PLAN.md).
+# Widevine is only on by default in Google Chrome builds; Mast downloads it on request.
+enable_widevine = true
+# Chromium's style-checking compiler plugins: never run over Mast's own code so far.
+clang_use_chrome_plugins = false
+exclude_unwind_tables = true
+v8_drumbrake_bounds_checks = true

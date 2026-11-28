@@ -57,7 +57,7 @@ diff -ruN a/chrome/browser/ui/browser_window/internal/embedder_browser_window_fe
 diff -ruN a/chrome/browser/ui/tabs/BUILD.gn b/chrome/browser/ui/tabs/BUILD.gn
 --- a/chrome/browser/ui/tabs/BUILD.gn
 +++ b/chrome/browser/ui/tabs/BUILD.gn
-@@ -139,6 +139,7 @@
+@@ -143,6 +143,7 @@
      ]
  
      deps = [
@@ -90,7 +90,7 @@ diff -ruN a/chrome/browser/ui/tabs/tab_favicon_theming.cc b/chrome/browser/ui/ta
 diff -ruN a/chrome/browser/ui/views/frame/browser_frame_view.cc b/chrome/browser/ui/views/frame/browser_frame_view.cc
 --- a/chrome/browser/ui/views/frame/browser_frame_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_frame_view.cc
-@@ -20,6 +20,7 @@
+@@ -21,6 +21,7 @@
  #include "chrome/browser/ui/views/frame/safe_invoke/safe_invoke.h"
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
  #include "chrome/grit/theme_resources.h"
@@ -98,7 +98,7 @@ diff -ruN a/chrome/browser/ui/views/frame/browser_frame_view.cc b/chrome/browser
  #include "third_party/skia/include/core/SkColor.h"
  #include "ui/base/metadata/metadata_impl_macros.h"
  #include "ui/base/theme_provider.h"
-@@ -333,6 +334,11 @@
+@@ -338,6 +339,11 @@
  
  gfx::ImageSkia BrowserFrameView::GetFrameImage(
      BrowserFrameActiveState active_state) const {
@@ -122,7 +122,7 @@ diff -ruN a/chrome/browser/ui/views/frame/browser_widget.cc b/chrome/browser/ui/
  #include <memory>
  #include <utility>
  
-@@ -501,6 +503,10 @@
+@@ -500,6 +502,10 @@
            web_app::AppBrowserController::From(browser_view_->browser())) {
      key.app_controller = app_controller;
      key.app_background_color = app_controller->GetBackgroundColor();
@@ -136,7 +136,7 @@ diff -ruN a/chrome/browser/ui/views/frame/browser_widget.cc b/chrome/browser/ui/
 diff -ruN a/chrome/browser/ui/views/frame/BUILD.gn b/chrome/browser/ui/views/frame/BUILD.gn
 --- a/chrome/browser/ui/views/frame/BUILD.gn
 +++ b/chrome/browser/ui/views/frame/BUILD.gn
-@@ -1256,12 +1256,21 @@
+@@ -1229,9 +1229,18 @@
  }
  
  source_set("themed_background_impl") {
@@ -146,10 +146,7 @@ diff -ruN a/chrome/browser/ui/views/frame/BUILD.gn b/chrome/browser/ui/views/fra
 +    "//mast/browser/ui/mast_wallpaper.cc",
 +    "//mast/browser/ui/mast_wallpaper.h",
 +  ]
-   public_deps = [
-     ":themed_background",
-     "//chrome/browser:browser_public_dependencies",
-   ]
+   public_deps = [ ":themed_background" ]
    deps = [
 +    "//ui/gfx/codec",
 +    "//content/public/browser",
@@ -159,7 +156,7 @@ diff -ruN a/chrome/browser/ui/views/frame/BUILD.gn b/chrome/browser/ui/views/fra
      ":top_container_view",
      "//base",
      "//chrome/app/theme:theme_resources",
-@@ -3107,6 +3116,7 @@
+@@ -3014,6 +3023,7 @@
      "//ui/views",
    ]
    deps = [
@@ -167,9 +164,9 @@ diff -ruN a/chrome/browser/ui/views/frame/BUILD.gn b/chrome/browser/ui/views/fra
      ":custom_corners",
      ":custom_corners_background",
      ":custom_floating_corner",
-@@ -3396,6 +3406,7 @@
-     "//chrome/browser:browser_public_dependencies",
-   ]
+@@ -3285,6 +3295,7 @@
+   sources = [ "browser_widget.cc" ]
+   public_deps = [ ":browser_widget" ]
    deps = [
 +    "//mast/common",
      ":browser_frame_view",
@@ -192,9 +189,9 @@ diff -ruN a/chrome/browser/ui/views/frame/contents_container_view.cc b/chrome/br
    contents_view_->SetID(VIEW_ID_TAB_CONTAINER);
 +  // Mast: Customize's picture under a new tab page (mast_wallpaper.h).
 +  SetBackground(mast::CreateNewTabPageBackground(contents_view_));
-   contents_view_->set_use_default_deadline_when_animating_bounds(
-       base::FeatureList::IsEnabled(
-           features::kUseDefaultDeadlineWhenAnimatingBounds));
+ 
+   if (base::FeatureList::IsEnabled(ntp_features::kNtpFooter)) {
+     new_tab_footer_view_separator_ =
 diff -ruN a/chrome/browser/ui/views/frame/contents_web_view.cc b/chrome/browser/ui/views/frame/contents_web_view.cc
 --- a/chrome/browser/ui/views/frame/contents_web_view.cc
 +++ b/chrome/browser/ui/views/frame/contents_web_view.cc
@@ -207,7 +204,7 @@ diff -ruN a/chrome/browser/ui/views/frame/contents_web_view.cc b/chrome/browser/
  #include "base/debug/dump_without_crashing.h"
  #include "build/build_config.h"
  #include "chrome/browser/ui/color/chrome_color_id.h"
-@@ -172,6 +174,9 @@
+@@ -179,6 +181,9 @@
    SafeInvoke(
        web_modal::WebContentsModalDialogManager::FromWebContents(web_contents))
        .Then(&web_modal::WebContentsModalDialogManager::UpdateDialogHost);
@@ -217,7 +214,7 @@ diff -ruN a/chrome/browser/ui/views/frame/contents_web_view.cc b/chrome/browser/
  }
  
  #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-@@ -214,14 +219,21 @@
+@@ -221,14 +226,21 @@
      }
    }
  
@@ -253,7 +250,7 @@ diff -ruN a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl
  #include <algorithm>
  #include <memory>
  #include <optional>
-@@ -869,8 +871,16 @@
+@@ -882,8 +884,16 @@
        const int leading_margin = GetHorizontalTabStripLeadingMargin(params);
        tabstrip_bounds = GetBoundsWithExclusion(
            params, views().horizontal_tab_strip_region_view, leading_margin);
@@ -270,7 +267,7 @@ diff -ruN a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl
        needs_exclusion = false;
      }
      layout.AddChild(views().horizontal_tab_strip_region_view, tabstrip_bounds,
-@@ -1217,7 +1227,7 @@
+@@ -1227,7 +1237,7 @@
    // the required top padding.
    const auto& separator_info = layout_data_->separator_info;
    views().multi_contents_view->SetShouldShowTopSeparator(
@@ -279,7 +276,7 @@ diff -ruN a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl
  
    // Updating the top, left and right insets for contents container view when
    // in split view. This is dependent on a number of other browser states.
-@@ -1427,6 +1437,28 @@
+@@ -1437,6 +1447,28 @@
      bool needs_exclusion) const {
    const int original_top = params.visual_client_area.y();
  
@@ -333,7 +330,7 @@ diff -ruN a/chrome/browser/ui/views/frame/themed_background.cc b/chrome/browser/
 diff -ruN a/chrome/browser/ui/views/omnibox/BUILD.gn b/chrome/browser/ui/views/omnibox/BUILD.gn
 --- a/chrome/browser/ui/views/omnibox/BUILD.gn
 +++ b/chrome/browser/ui/views/omnibox/BUILD.gn
-@@ -116,6 +116,7 @@
+@@ -122,6 +122,7 @@
    ]
  
    deps = [
@@ -353,7 +350,7 @@ diff -ruN a/chrome/browser/ui/views/omnibox/omnibox_popup_presenter_base.cc b/ch
  #include <optional>
  
  #include "base/auto_reset.h"
-@@ -374,6 +376,10 @@
+@@ -387,6 +389,10 @@
      // The width is known, and is the basis for consistent web content rendering
      // so width is specified exactly; then only height adjusts dynamically.
      gfx::Rect widget_bounds = location_bar_->BoundsInScreen();
@@ -367,7 +364,7 @@ diff -ruN a/chrome/browser/ui/views/omnibox/omnibox_popup_presenter_base.cc b/ch
 diff -ruN a/chrome/browser/ui/views/tabs/BUILD.gn b/chrome/browser/ui/views/tabs/BUILD.gn
 --- a/chrome/browser/ui/views/tabs/BUILD.gn
 +++ b/chrome/browser/ui/views/tabs/BUILD.gn
-@@ -89,6 +89,7 @@
+@@ -87,6 +87,7 @@
    ]
  
    deps = [
@@ -375,7 +372,7 @@ diff -ruN a/chrome/browser/ui/views/tabs/BUILD.gn b/chrome/browser/ui/views/tabs
      ":base",
      ":tab",
      ":tab_group",
-@@ -210,6 +211,7 @@
+@@ -202,6 +203,7 @@
    ]
  
    deps = [
@@ -386,7 +383,7 @@ diff -ruN a/chrome/browser/ui/views/tabs/BUILD.gn b/chrome/browser/ui/views/tabs
 diff -ruN a/chrome/browser/ui/views/tabs/common/BUILD.gn b/chrome/browser/ui/views/tabs/common/BUILD.gn
 --- a/chrome/browser/ui/views/tabs/common/BUILD.gn
 +++ b/chrome/browser/ui/views/tabs/common/BUILD.gn
-@@ -89,6 +89,7 @@
+@@ -97,6 +97,7 @@
    ]
  
    deps = [
@@ -461,13 +458,13 @@ diff -ruN a/chrome/browser/ui/views/tabs/tab_group_header.cc b/chrome/browser/ui
  #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
  #include "chrome/browser/ui/tabs/tab_group_attention_indicator.h"
  #include "chrome/browser/ui/tabs/tab_group_data.h"
-@@ -598,14 +599,26 @@
+@@ -640,10 +641,19 @@
  
  int TabGroupHeader::GetDesiredWidth() const {
    const int overlap_margin = group_style_->GetTabGroupViewOverlap() * 2;
--  return overlap_margin + title_chip_->width();
+-  return overlap_margin + GetUnfocusChipWidthWithGap() + title_chip_->width();
 +  // Mast: room for the side gap on both sides of the pill.
-+  return overlap_margin + title_chip_->width() +
++  return overlap_margin + GetUnfocusChipWidthWithGap() + title_chip_->width() +
 +         (mast::IsOneRowWindow() ? 8 : 0);
  }
  
@@ -479,17 +476,20 @@ diff -ruN a/chrome/browser/ui/views/tabs/tab_group_header.cc b/chrome/browser/ui
 +                                 : GetLayoutConstant(LayoutConstant::kTabHeight);
 +    return row - 2 * mast::kOneRowTabPillInset;
 +  }
-   return TabGroupStyle::GetEmptyChipSize();
+   const bool is_focused =
+       is_ephemeral_ ||
+       tab_slot_controller_->GetFocusedGroup() == group().value();
+@@ -652,6 +662,9 @@
  }
  
  int TabGroupHeader::GetChipY() const {
 +  if (mast::IsOneRowWindow()) {
 +    return mast::kOneRowTabPillInset;
 +  }
-   return TabGroupStyle::GetTitleChipOffset(std::nullopt).y();
+   return TabGroupStyle::GetTitleChipOffset(GetChipHeight()).y();
  }
  
-@@ -659,7 +672,9 @@
+@@ -704,7 +717,9 @@
            frame_active ? ui::kColorSysOnSurfacePrimary
                         : ui::kColorSysOnSurfacePrimaryInactive));
      } else {
@@ -500,36 +500,36 @@ diff -ruN a/chrome/browser/ui/views/tabs/tab_group_header.cc b/chrome/browser/ui
      }
    }
  }
-@@ -712,6 +727,14 @@
- 
-   title_chip_->SetBounds(empty_origin.x(), chip_y, empty_width, chip_height);
-   title_chip_->SetBackground(group_style_->GetEmptyTitleChipBackground(color_));
+@@ -771,6 +786,15 @@
+   title_chip_->SetBackground(
+       is_focused ? views::CreateRoundedRectBackground(color_, radii)
+                  : group_style_->GetEmptyTitleChipBackground(color_));
 +  if (mast::IsOneRowWindow()) {
 +    // Mast: an unnamed group is a dot of its colour, centred in the row.
 +    constexpr int kDot = 12;
-+    title_chip_->SetBounds(empty_origin.x() + (empty_width - kDot) / 2,
-+                           chip_y + (chip_height - kDot) / 2, kDot, kDot);
++    title_chip_->SetBounds(
++        empty_origin.x() + GetUnfocusChipWidthWithGap() + (empty_width - kDot) / 2,
++        chip_y + (chip_height - kDot) / 2, kDot, kDot);
 +    title_chip_->SetBackground(
 +        views::CreateRoundedRectBackground(color_, kDot / 2));
 +  }
  
    const int sync_icon_width = group_style_->GetSyncIconWidth();
  
-@@ -799,10 +822,13 @@
-       TabGroupStyle::GetTitleChipOffset(std::nullopt);
- 
-   const int corner_radius = TabGroupStyle::GetChipCornerRadius();
--  title_chip_->SetBounds(named_origin.x(), chip_y, title_chip_width,
--                         chip_height);
--  title_chip_->SetBackground(
--      views::CreateRoundedRectBackground(color_, corner_radius));
+@@ -869,9 +893,14 @@
+       is_focused
+           ? gfx::RoundedCornersF(2.0f, corner_radius, corner_radius, 2.0f)
+           : gfx::RoundedCornersF(corner_radius);
+-  title_chip_->SetBounds(named_origin.x() + GetUnfocusChipWidthWithGap(),
 +  // Mast: the tabs' side gap (4) before the pill, as each tab pill has.
-+  title_chip_->SetBounds(named_origin.x() + (mast::IsOneRowWindow() ? 4 : 0),
-+                         chip_y, title_chip_width, chip_height);
++  title_chip_->SetBounds(named_origin.x() + GetUnfocusChipWidthWithGap() +
++                             (mast::IsOneRowWindow() ? 4 : 0),
+                          chip_y, title_chip_width, chip_height);
+-  title_chip_->SetBackground(views::CreateRoundedRectBackground(color_, radii));
 +  // Mast: a pill tinted with the group's colour (its name is in that colour).
 +  title_chip_->SetBackground(views::CreateRoundedRectBackground(
 +      mast::IsOneRowWindow() ? SkColorSetA(color_, 0x40) : color_,
-+      mast::IsOneRowWindow() ? 8 : corner_radius));
++      mast::IsOneRowWindow() ? gfx::RoundedCornersF(8.0f) : radii));
  
    // Set the bounds of the sync icon first, followed by the title.
    const int start_of_sync_icon = title_chip_insets.left();
@@ -617,7 +617,7 @@ diff -ruN a/chrome/browser/ui/views/tabs/z_orderable_tab_container_element.cc b/
  #include "ui/views/view_utils.h"
  
  // static
-@@ -51,7 +52,8 @@
+@@ -52,7 +53,8 @@
    }
  
    // Group headers and underlines are painted above non-active tabs.

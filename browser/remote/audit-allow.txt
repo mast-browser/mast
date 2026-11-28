@@ -1,0 +1,7 @@
+# The network audit's allowlist (remote/netcheck.py, the `audit` screenshot area): every
+# request a fresh Mast makes on its own, from start-up through the welcome flow, five idle
+# minutes on the new tab page and Mast's own pages, must start with one of these. Like
+# Brave's kAllowedUrlPrefixes (browser/net/brave_network_audit_allowed_lists.h): add a line
+# only with a reason, and prefer turning the request off (privacy.json).
+#
+# (Nothing yet: a fresh Mast that hasn't been asked to do anything should talk to nobody.)

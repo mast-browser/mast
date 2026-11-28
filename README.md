@@ -47,7 +47,7 @@ To try it first: `nix run github:mast-browser/mast`.
 - **Block**: pick a length of time and every distraction category closes until it's over.
 - **YouTube your way**: allow it, block Shorts, allow music only, or block it all.
 - **Your own categories**: add sites to Mast's lists, or make lists of your own.
-- **No Google by default**: built on [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium); Chrome extensions still work.
+- **No Google by default**: Mast turns off Chromium's Google services itself, each one listed with its reason in [`privacy.json`](browser/privacy.json), and checks every release for new ones. Chrome extensions still work.
 
 ## Build
 
@@ -56,5 +56,4 @@ The browser is built on a rented server from `browser/` (see [`browser/docs/RELE
 
 ## Licence
 
-[GPL-3.0](LICENSE). Mast builds on Chromium and ungoogled-chromium, whose code keeps its
-BSD-style notices. The built-in backgrounds are public-domain paintings ([credits](browser/wallpapers/CREDITS.md)).
+[GPL-3.0](LICENSE). Mast builds on Chromium, whose code keeps its BSD-style notices. The built-in backgrounds are public-domain paintings ([credits](browser/wallpapers/CREDITS.md)).

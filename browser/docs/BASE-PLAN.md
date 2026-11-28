@@ -164,7 +164,12 @@ Each step ends with Mast working; nothing is removed before its replacement is p
    ungoogled base. `./mast check-patches` now checks both bases: today's patches come out
    byte-identical, and on pristine Chromium every edit applies, the privacy layer being 22
    files and 39 added lines (ungoogled changes ≈7,900). Not compiled yet.
-3. **Switch the base** (one long build, roughly 3–6 hours on the `cpx62`, about $1–2): a
+3. **Switch the base**, together with the move to Chromium 158 (one long build instead of two).
+   **Wired 2026-11-28, not built yet:** `browser/base.txt` says `chromium`; `ungoogle.sh` commits
+   pristine Chromium for it; `build.sh` applies only the patches made for the base and takes the
+   build flags from `privacy.json` (`remote/privacy-args.py`) plus `remote/args.gn` (Widevine,
+   no style plugins: what ungoogled's `flags.gn` set); the `audit` screenshot area and
+   `remote/audit-allow.txt` are the network audit. Originally planned as: (one long build, roughly 3–6 hours on the `cpx62`, about $1–2): a
    `MAST_BASE=chromium` setting makes `ungoogle.sh` skip ungoogled; `safe_browsing_mode = 1`;
    ungoogled's `flags.gn` replaced by Mast's own args. Run the audit and compare with step 1;
    fix every difference.

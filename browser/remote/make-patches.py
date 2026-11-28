@@ -16,10 +16,12 @@ LOCAL = os.environ.get("MAST_LOCAL_BASE")
 # the first (MAST_KEEP_GOING=1). Every run writes edits.json next to the patches: each edit's
 # patch, upstream file and line here, which tools/rebase-check.mjs reads.
 KEEP_GOING = os.environ.get("MAST_KEEP_GOING") == "1"
-# The tree Mast's patches go on (docs/BASE-PLAN.md): "ungoogled" (pristine Chromium plus
-# ungoogled-chromium's core patches and domain substitution; what Mast ships today) or
-# "chromium" (pristine Chromium, with Mast's own privacy layer from privacy.json instead).
-BASE = os.environ.get("MAST_BASE", "ungoogled")
+# The tree Mast's patches go on (docs/BASE-PLAN.md): "chromium" (pristine Chromium, with
+# Mast's own privacy layer from privacy.json) or "ungoogled" (pristine Chromium plus
+# ungoogled-chromium's core patches and domain substitution; what Mast shipped up to 0.1.0).
+# base.txt says which one Mast ships; MAST_BASE overrides it (./mast check-patches checks both).
+BASE = os.environ.get("MAST_BASE") or open(os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "base.txt")).read().strip()
 assert BASE in ("ungoogled", "chromium"), f"MAST_BASE must be ungoogled or chromium, not {BASE!r}"
 UNGOOGLED = BASE == "ungoogled"
 shutil.rmtree(WORK, ignore_errors=True)
@@ -778,35 +780,36 @@ edit(R, "chrome/browser/ui/views/tabs/tab_group_header.cc", lambda t: once(once(
     '    const int row = height() > 0 ? height()\n'
     '                                 : GetLayoutConstant(LayoutConstant::kTabHeight);\n'
     '    return row - 2 * mast::kOneRowTabPillInset;\n  }\n'),
-    '  title_chip_->SetBounds(named_origin.x(), chip_y, title_chip_width,\n                         chip_height);\n',
+    '  title_chip_->SetBounds(named_origin.x() + GetUnfocusChipWidthWithGap(),\n'
+    '                         chip_y, title_chip_width, chip_height);\n',
     '  // Mast: the tabs\' side gap (4) before the pill, as each tab pill has.\n'
-    '  title_chip_->SetBounds(named_origin.x() + (mast::IsOneRowWindow() ? 4 : 0),\n'
+    '  title_chip_->SetBounds(named_origin.x() + GetUnfocusChipWidthWithGap() +\n'
+    '                             (mast::IsOneRowWindow() ? 4 : 0),\n'
     '                         chip_y, title_chip_width, chip_height);\n'),
-    '  return overlap_margin + title_chip_->width();\n',
+    '  return overlap_margin + GetUnfocusChipWidthWithGap() + title_chip_->width();\n',
     '  // Mast: room for the side gap on both sides of the pill.\n'
-    '  return overlap_margin + title_chip_->width() +\n'
+    '  return overlap_margin + GetUnfocusChipWidthWithGap() + title_chip_->width() +\n'
     '         (mast::IsOneRowWindow() ? 8 : 0);\n'),
     'int TabGroupHeader::GetChipY() const {\n',
     'int TabGroupHeader::GetChipY() const {\n'
     '  if (mast::IsOneRowWindow()) {\n    return mast::kOneRowTabPillInset;\n  }\n'),
-    '  title_chip_->SetBackground(\n      views::CreateRoundedRectBackground(color_, corner_radius));\n',
+    '  title_chip_->SetBackground(views::CreateRoundedRectBackground(color_, radii));\n',
     '  // Mast: a pill tinted with the group\'s colour (its name is in that colour).\n'
     '  title_chip_->SetBackground(views::CreateRoundedRectBackground(\n'
     '      mast::IsOneRowWindow() ? SkColorSetA(color_, 0x40) : color_,\n'
-    '      mast::IsOneRowWindow() ? 8 : corner_radius));\n'),
+    '      mast::IsOneRowWindow() ? gfx::RoundedCornersF(8.0f) : radii));\n'),
     '      title_->SetEnabledColor(color_utils::GetColorWithMaxContrast(color_));\n',
     '      title_->SetEnabledColor(mast::IsOneRowWindow()\n'
     '                                  ? color_\n'
     '                                  : color_utils::GetColorWithMaxContrast(color_));\n'),
-    '  title_chip_->SetBounds(empty_origin.x(), chip_y, empty_width, chip_height);\n'
-    '  title_chip_->SetBackground(group_style_->GetEmptyTitleChipBackground(color_));\n',
-    '  title_chip_->SetBounds(empty_origin.x(), chip_y, empty_width, chip_height);\n'
-    '  title_chip_->SetBackground(group_style_->GetEmptyTitleChipBackground(color_));\n'
+    '                 : group_style_->GetEmptyTitleChipBackground(color_));\n',
+    '                 : group_style_->GetEmptyTitleChipBackground(color_));\n'
     '  if (mast::IsOneRowWindow()) {\n'
     '    // Mast: an unnamed group is a dot of its colour, centred in the row.\n'
     '    constexpr int kDot = 12;\n'
-    '    title_chip_->SetBounds(empty_origin.x() + (empty_width - kDot) / 2,\n'
-    '                           chip_y + (chip_height - kDot) / 2, kDot, kDot);\n'
+    '    title_chip_->SetBounds(\n'
+    '        empty_origin.x() + GetUnfocusChipWidthWithGap() + (empty_width - kDot) / 2,\n'
+    '        chip_y + (chip_height - kDot) / 2, kDot, kDot);\n'
     '    title_chip_->SetBackground(\n'
     '        views::CreateRoundedRectBackground(color_, kDot / 2));\n  }\n'))
 edit(R, "chrome/browser/ui/views/tabs/tab_group_underline.cc", lambda t: once(once(once(once(t,
@@ -1159,11 +1162,13 @@ if not UNGOOGLED:
         decl = pristine(pref["declared_in"])
         assert f'"{pref["pref"]}"' in decl, f'{pref["pref"]} is no longer declared in {pref["declared_in"]}'
         return f'  registry->SetDefaultPrefValue("{pref["pref"]}", base::Value({json.dumps(pref["value"])}));\n'
+    # The end of RegisterUserProfilePrefs(), anchored on the function after it.
     privacy_edit("chrome/browser/prefs/browser_prefs.cc", lambda t: once(t,
-        "  ash::TokenHandleStoreImpl::RegisterPrefs(registry);\n#endif\n}\n",
-        "  ash::TokenHandleStoreImpl::RegisterPrefs(registry);\n#endif\n"
+        "#endif\n}\n\nvoid RegisterScreenshotPrefs(PrefRegistrySimple* registry) {\n",
+        "#endif\n"
         "  // Mast: privacy.json's pref defaults.\n"
-        + "".join(pref_line(pref) for pref in PRIVACY["profile_prefs"]) + "}\n"))
+        + "".join(pref_line(pref) for pref in PRIVACY["profile_prefs"])
+        + "}\n\nvoid RegisterScreenshotPrefs(PrefRegistrySimple* registry) {\n"))
 
 os.makedirs(WORK, exist_ok=True)
 json.dump(EDITS, open(os.path.join(WORK, "edits.json"), "w"), indent=1)

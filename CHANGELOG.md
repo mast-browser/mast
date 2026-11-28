@@ -6,6 +6,8 @@ release's version (docs/RELEASING.md).
 
 ## Unreleased
 
+- Built on Chromium 158 (158.0.8127.88).
+- Mast now turns off Google's services in Chromium itself, the way Brave does, instead of building on ungoogled-chromium. Everything it turns off is listed, with the reason, in `browser/privacy.json`. Google search, the Web Store and Widevine work as before; Safe Browsing stays off for now.
 - The new tab page's saved sites are a slim column of round glass icons on the left edge. A site's name shows beside it when you point at it.
 - Mast's font, Inter, now comes with the browser, so its pages and menus look the same on every system. Where Inter wasn't installed (Ubuntu, for one), they fell back to the system's font.
 - NixOS: install Mast from its flake (`github:mast-browser/mast`) and update it with the rest of the system. See the README.

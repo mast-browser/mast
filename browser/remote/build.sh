@@ -30,8 +30,9 @@ if [ "$(cat .mast-version 2>/dev/null)" != "$VERSION" ]; then
 	echo "$VERSION" > .mast-version
 fi
 
-# 2. De-Googled base, committed in src so Mast's patches have a fixed starting point
-BASE=$( { echo "$VERSION $UG_TAG"; cat "$M/patches/ungoogled-drop.list" "$M/patches/ungoogled-extra.list" \
+# 2. The base (base.txt: pristine Chromium, or the ungoogled-chromium one Mast shipped up to
+# 0.1.0), committed in src so Mast's patches have a fixed starting point
+BASE=$( { echo "$VERSION $UG_TAG"; cat "$M/base.txt" "$M/patches/ungoogled-drop.list" "$M/patches/ungoogled-extra.list" \
 	"$M/patches/substitution-exclude.list" \
 	"$M/remote/ungoogle.sh"; } | sha256sum | cut -d' ' -f1)
 if [ "$(cat .mast-base 2>/dev/null)" != "$BASE" ]; then
@@ -45,8 +46,12 @@ cd "$C"
 # HEAD, not the working tree), so they always match. The generated files are copied into
 # patches/ and pulled back to the repo. Re-applied from a clean base only when they change.
 python3 "$M/remote/make-patches.py"
+# Only this run's patches: each base makes its own set (mast-privacy.patch on pristine
+# Chromium, mast-ungoogled.patch on the ungoogled one), so the series lists both.
+rm -f "$M"/patches/mast-*.patch
 cp /root/pw/*.patch "$M/patches/"
-mapfile -t PATCHES < <(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$M/patches/series")
+mapfile -t PATCHES < <(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$M/patches/series" |
+	while read -r p; do [ -f "$M/patches/$p" ] && echo "$p"; done)
 SUM=$( { cat "$M/patches/series"; for p in "${PATCHES[@]}"; do cat "$M/patches/$p"; done; } | sha256sum | cut -d' ' -f1)
 if [ "$(cat .mast-patches 2>/dev/null)" != "$SUM" ]; then
 	say "Applying ${#PATCHES[@]} Mast patch(es)"
@@ -82,7 +87,13 @@ fi
 
 # 5. Configure + build: ungoogled-chromium's flags, then Mast's (Mast wins on conflicts).
 mkdir -p "$OUT"
-python3 "$M/remote/merge-args.py" "$OUT/args.gn" "$HOME/ungoogled/flags.gn" "$M/remote/args.gn"
+# The base's flags: privacy.json's on pristine Chromium, ungoogled-chromium's flags.gn on its base.
+if [ "$(cat "$M/base.txt")" = chromium ]; then
+	python3 "$M/remote/privacy-args.py" "$M/privacy.json" /tmp/mast-base-args.gn
+else
+	cp "$HOME/ungoogled/flags.gn" /tmp/mast-base-args.gn
+fi
+python3 "$M/remote/merge-args.py" "$OUT/args.gn" /tmp/mast-base-args.gn "$M/remote/args.gn"
 cd "$S"
 say "gn gen"
 gn gen "$OUT"

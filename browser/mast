@@ -272,7 +272,7 @@ cmd__guard() {
 push() {
 	log "pushing code"
 	rsync -az --timeout=120 --delete -e "ssh ${SSH_OPTS[*]}" \
-		"$ROOT/remote" "$ROOT/patches" "$ROOT/src" "$ROOT/wallpapers" "$ROOT/fonts" "$ROOT/privacy.json" "$ROOT/chromium_version.txt" "$ROOT/ungoogled_version.txt" \
+		"$ROOT/remote" "$ROOT/patches" "$ROOT/src" "$ROOT/wallpapers" "$ROOT/fonts" "$ROOT/privacy.json" "$ROOT/base.txt" "$ROOT/chromium_version.txt" "$ROOT/ungoogled_version.txt" \
 		"$ROOT/../blocklist" "root@$HOST:mast/"
 }
 
@@ -534,11 +534,13 @@ cmd_check-patches() {
 	work=$(mktemp -d)
 	MAST_PATCH_WORK="$work" make_patches
 	node "$ROOT/tools/rebase-check.mjs" inventory "$work"
-	# The same patches on pristine Chromium, with Mast's own privacy layer (privacy.json)
-	# in place of ungoogled-chromium (docs/BASE-PLAN.md): every anchor must hold there too.
-	log "and on pristine Chromium (MAST_BASE=chromium)"
-	MAST_BASE=chromium MAST_PATCH_WORK="$work/chromium" make_patches
-	log "anchors OK; patches written to $work (pristine-Chromium ones in $work/chromium)"
+	# And on the other base (base.txt says which one Mast ships; docs/BASE-PLAN.md), until
+	# the ungoogled one is removed: every anchor must hold there too.
+	local other=ungoogled
+	[[ $(cat "$ROOT/base.txt") == ungoogled ]] && other=chromium
+	log "and on the $other base"
+	MAST_BASE=$other MAST_PATCH_WORK="$work/$other" make_patches
+	log "anchors OK; patches written to $work (the $other base's in $work/$other)"
 }
 
 # Before moving to another Chromium release: every patch edit, Chromium header, overridden

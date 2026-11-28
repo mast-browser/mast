@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Build the de-Googled base tree: pristine Chromium at the pinned tag, ungoogled-chromium's
+# Build the base tree Mast's patches go on. base.txt picks it (docs/BASE-PLAN.md):
+#   chromium:  pristine Chromium at the pinned tag (Mast's privacy layer is one of its patches)
+#   ungoogled: what Mast shipped up to 0.1.0, as follows.
+# The ungoogled base: pristine Chromium at the pinned tag, ungoogled-chromium's
 # core patches (minus patches/ungoogled-drop.list) plus the few "extra" patches in
 # patches/ungoogled-extra.list, then domain substitution (minus
 # patches/substitution-exclude.list). The result is committed in src as the base that
@@ -13,15 +16,16 @@ S=$C/src
 UG=$HOME/ungoogled
 VERSION=$(cat "$M/chromium_version.txt")
 UG_TAG=$(cat "$M/ungoogled_version.txt")
+BASE=$(cat "$M/base.txt")
 say() { printf '\n== %s\n' "$*"; }
 command -v patch >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -y -q patch >/dev/null
 
-if [ "$(git -C "$UG" describe --tags --exact-match 2>/dev/null)" != "$UG_TAG" ]; then
+if [ "$BASE" = ungoogled ] && [ "$(git -C "$UG" describe --tags --exact-match 2>/dev/null)" != "$UG_TAG" ]; then
 	say "Fetching ungoogled-chromium $UG_TAG"
 	rm -rf "$UG"
 	git clone -q --depth 1 --branch "$UG_TAG" https://github.com/ungoogled-software/ungoogled-chromium.git "$UG"
 fi
-[ "$(cat "$UG/chromium_version.txt")" = "$VERSION" ] ||
+[ "$BASE" != ungoogled ] || [ "$(cat "$UG/chromium_version.txt")" = "$VERSION" ] ||
 	{ echo "ungoogled $UG_TAG is for Chromium $(cat "$UG/chromium_version.txt"), we pin $VERSION"; exit 1; }
 
 say "Resetting to pristine Chromium $VERSION"
@@ -31,6 +35,16 @@ git -C "$S" clean -fdq -e /mast -e /out
 cd "$C"
 # --reset puts every dependency repo back too (substitution edits files across them).
 gclient sync --nohooks --no-history -D --force --reset --revision "src@$REV"
+
+if [ "$BASE" = chromium ]; then
+	say "Committing the base: pristine Chromium $VERSION"
+	cd "$S"
+	grep -qxF /mast .git/info/exclude 2>/dev/null || echo /mast >> .git/info/exclude
+	git add -A
+	git -c user.name=mast -c user.email=mast@localhost commit -qm "base: pristine Chromium $VERSION" --no-verify --allow-empty
+	git log --oneline -1
+	exit 0
+fi
 
 say "Applying ungoogled-chromium core patches"
 cd "$S"

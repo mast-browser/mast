@@ -4,6 +4,23 @@ One entry per release we check or move to. Record what `./mast check-rebase` fou
 build and screenshots found that it didn't (then teach the check, if it can be taught), and how
 long it took. Reports: `docs/rebase/<version>.md`. What is checked: [UPSTREAM.md](UPSTREAM.md).
 
+## 158.0.8127.88, pristine Chromium base: moved 2026-11-28, not built yet
+
+Moved together with the switch from ungoogled-chromium to Mast's own privacy layer
+([BASE-PLAN.md](BASE-PLAN.md), step 3), so one full rebuild covers both.
+**Check** ([rebase/158.0.8127.88.md](rebase/158.0.8127.88.md), on the ungoogled base): 1 of 104
+edits failed, the tab-group header, where 158 added a "focused group" chip
+(`GetUnfocusChipWidthWithGap()`) and per-corner radii. Four of its eight anchors were rewritten
+for 158; the pills look the same. On pristine Chromium one more failed: the privacy layer's
+pref defaults, anchored on a ChromeOS line 158 renamed; now anchored on the function after it.
+All 13 feature switches and 7 stubs matched 158 unchanged. No headers, names or GN deps gone.
+
+**Review items (18), triaged:** all fine. New includes; `DCHECK`→`CHECK`; removed flags and
+an Android-only block; `kWebUIRoundedIcons` now on by default (WebUI icons only); the tab
+"foot" is now `GetBottomExtensionWidth()`, which returns Mast's 4 px bottom radius, so the
+overlap maths stays positive; a Widevine validity check that now accepts a query in progress.
+**Look after the build:** tab groups (`tabgroups` screenshots), since 158 reworked the header.
+
 ## 157.0.8103.78 (ungoogled 157.0.8103.78-1): checked 2026-11-18, not built yet
 
 A security point release. 158 is Stable upstream, but ungoogled hasn't tagged it yet.
