@@ -9,8 +9,13 @@ W=${MAST_SHOT_W:-1440}
 H=${MAST_SHOT_H:-900}
 if ! command -v Xvfb >/dev/null || ! command -v xdotool >/dev/null || ! command -v convert >/dev/null ||
 	! python3 -c 'import websocket' 2>/dev/null; then
+	# No fonts-inter: Mast brings its own Inter (mast-fonts/), and the screenshots should show it does.
 	DEBIAN_FRONTEND=noninteractive apt-get install -y -q xvfb xdotool imagemagick python3-websocket \
-		fonts-inter fonts-noto-core >/dev/null
+		fonts-noto-core >/dev/null
+fi
+# ...and off the builder if an earlier run installed it, so only Mast's own copy can show.
+if dpkg -s fonts-inter >/dev/null 2>&1; then
+	DEBIAN_FRONTEND=noninteractive apt-get remove -y -q fonts-inter >/dev/null && fc-cache -f >/dev/null 2>&1 || true
 fi
 pkill -f "[X]vfb :99" || true
 rm -rf "$SHOTS" /tmp/mast-shot-profile
