@@ -66,8 +66,8 @@ void OpenWelcome(base::WeakPtr<BrowserWindowInterface> weak) {
   const bool lone_new_tab = only && only->GetVisibleURL().SchemeIs("chrome") &&
                             only->GetVisibleURL().host() == "newtab";
   browser->OpenGURL(GURL("chrome://mast/welcome"),
-                    lone_new_tab ? WindowOpenDisposition::CURRENT_TAB
-                                 : WindowOpenDisposition::NEW_FOREGROUND_TAB);
+                    lone_new_tab ? WindowOpenDisposition::kCurrentTab
+                                 : WindowOpenDisposition::kNewForegroundTab);
 }
 
 // The welcome page (designs C25, C26), once per profile, in its first normal

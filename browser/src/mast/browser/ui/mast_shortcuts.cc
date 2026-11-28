@@ -110,7 +110,7 @@ bool MastShortcuts::AcceleratorPressed(const ui::Accelerator& accelerator) {
   if (it == urls_.end()) {
     return false;
   }
-  browser_->OpenGURL(it->second, WindowOpenDisposition::NEW_FOREGROUND_TAB);
+  browser_->OpenGURL(it->second, WindowOpenDisposition::kNewForegroundTab);
   return true;
 }
 
