@@ -6,6 +6,8 @@ release's version (docs/RELEASING.md).
 
 ## Unreleased
 
+## 0.1.1 (Chromium 158.0.8127.88)
+
 - Built on Chromium 158 (158.0.8127.88).
 - Mast now turns off Google's services in Chromium itself, the way Brave does, instead of building on ungoogled-chromium. Everything it turns off is listed, with the reason, in `browser/privacy.json`. Google search, the Web Store and Widevine work as before; Safe Browsing stays off for now.
 - The new tab page's saved sites are a slim column of round glass icons on the left edge. A site's name shows beside it when you point at it.
