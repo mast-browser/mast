@@ -5,34 +5,39 @@
 <title>New Tab</title>
 {{ICON}}
 <style>{{STYLE}}
-/* New tab: a desktop. Saved sites are icons straight on it (design C14), in a
-   grid that fills columns from the top left like a desktop's; they are a
-   bookmarks folder. Widgets sit in a column on the right. */
+/* New tab: saved sites are a column of glass circles on the left edge, centred
+   (design D, "circles only"): just the site's icon; its name shows in a pill to
+   the right while hovered. They are a bookmarks folder. A long list wraps into a
+   second column. */
 body { background: var(--surface); }
 .desk { display: grid; grid-template-columns: 1fr; gap: 48px; min-height: 100vh; padding: 40px 48px; }
-.apps { display: grid; grid-auto-flow: column; grid-template-rows: repeat(auto-fill, 92px); grid-auto-columns: 84px; gap: 2px 4px;
-  align-content: start; justify-content: start; height: calc(100vh - 80px); }
-.app { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 84px; height: 92px; padding: 8px 4px;
-  border-radius: 8px; color: var(--text); text-decoration: none; }
-.app:hover { background: rgb(255 255 255/.06); box-shadow: inset 0 0 0 1px rgb(255 255 255/.08); }
-.app:focus-visible { outline: 2px solid var(--text-3); outline-offset: 0; }
-/* .app .tile: the saved sites' icons. Scoped: the blocklist panel has .tile cards too. */
-.app .tile { display: grid; place-items: center; flex: none; width: 44px; height: 44px; }
-/* Flat, like icons on the Windows and macOS desktops: no shadow under them. */
-.app .tile img { width: 40px; height: 40px; border-radius: 9px; }
-.app .label { width: 100%; overflow: hidden; font-size: 12px; line-height: 1.25; text-align: center;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
-.app .rm { position: absolute; top: 2px; right: 6px; display: none; place-items: center; width: 20px; height: 20px; padding: 0;
+.apps { position: fixed; z-index: 1; left: 24px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-flow: column wrap; align-content: flex-start; gap: 10px; max-height: calc(100vh - 120px); }
+.app { position: relative; display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0;
+  border: 1px solid rgb(255 255 255/.14); border-radius: 50%; background: rgb(255 255 255/.12);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); color: #ededed; text-decoration: none;
+  transition: background-color .12s, border-color .12s; }
+.app:hover, .app:focus-visible { background: rgb(255 255 255/.22); border-color: rgb(255 255 255/.28); }
+.app:focus-visible { outline: 2px solid rgb(255 255 255/.5); outline-offset: 2px; }
+/* .app .tile: the site's icon. Scoped: the blocklist panel has .tile cards too. */
+.app .tile { display: grid; place-items: center; width: 20px; height: 20px; }
+.app .tile img { width: 20px; height: 20px; border-radius: 4px; }
+/* The name: a pill beside the circle while it's hovered or focused. */
+.app .label { position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
+  display: none; align-items: center; height: 26px; padding: 0 10px; border: 1px solid rgb(255 255 255/.1); border-radius: 13px;
+  background: rgb(10 10 10/.75); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  color: #ededed; font-size: 12px; font-weight: 500; white-space: nowrap; pointer-events: none; }
+.app:hover .label, .app:focus-visible .label { display: flex; }
+.apps.drag .app .label { display: none; }
+.app .rm { position: absolute; top: -4px; right: -4px; display: none; place-items: center; width: 16px; height: 16px; padding: 0;
   border: 0; border-radius: 50%; background: var(--pressed); color: var(--text-2); box-shadow: 0 0 0 1px var(--line); }
 .app:hover .rm, .app:focus-within .rm { display: grid; }
 .app .rm:hover { color: var(--text); }
 .app.dragging { opacity: .35; }
-.app.drop-before::before { content: ''; position: absolute; left: 10px; right: 10px; top: -2px; height: 2px; border-radius: 1px; background: var(--text-2); }
-.add { border: 0; background: none; font: inherit; }
-.add .tile { color: var(--text-2); }
-.add .label { color: var(--text-2); }
-.add:hover .tile, .add:hover .label { color: var(--text); }
-.apps .hint { grid-row: 1; align-self: center; width: 260px; margin: 0 0 0 12px; color: var(--text-3); font-size: 12px; }
+.app.drop-before::before { content: ''; position: absolute; left: 4px; right: 4px; top: -7px; height: 2px; border-radius: 1px; background: rgb(255 255 255/.7); }
+.add { font: inherit; cursor: pointer; }
+.add .tile { color: #ededed; }
+.apps .hint { width: 220px; margin: 4px 0 0; color: var(--text-3); font-size: 12px; }
 /* Customize, in the bottom-right corner. */
 .customize { position: fixed; right: 48px; bottom: 24px; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px;
   border: 0; border-radius: var(--r); background: var(--field); color: var(--text-2); font-size: 12px; font-weight: 500; }
@@ -127,16 +132,15 @@ body.wall.light .primary { background: #141414; color: #f2f2f2; }
 /* ...and stays visibly off when disabled (the rules above outrank .primary:disabled). */
 body.wall .primary:disabled { background: rgb(255 255 255/.1); color: rgb(242 242 242/.4); }
 body.wall.light .primary:disabled { background: rgb(0 0 0/.08); color: rgb(20 20 20/.4); }
-body.wall .app .label, body.wall .add .label, body.wall .apps .hint { color: #ededed; text-shadow: 0 1px 2px rgb(0 0 0/.55); }
-body.wall .add .tile { color: #ededed; filter: drop-shadow(0 1px 1px rgb(0 0 0/.4)); }
-body.wall .app:hover { background: rgb(255 255 255/.1); box-shadow: inset 0 0 0 1px rgb(255 255 255/.15); }
+body.wall .apps .hint { color: #ededed; text-shadow: 0 1px 2px rgb(0 0 0/.55); }
 body.wall .customize:hover { background: rgb(255 255 255/.2); }
 body.wall.light .widget, body.wall.light .customize { background: none; box-shadow: none;
   --text: #141414; --text-2: #3d3d3d; --text-3: #5e5e5e; --seg: rgb(0 0 0/.07); --pressed: rgb(255 255 255/.85); --field: rgb(0 0 0/.06);
   --line: rgb(0 0 0/.08); text-shadow: 0 1px 4px rgb(255 255 255/.55); }
-body.wall.light .app .label, body.wall.light .add .label, body.wall.light .apps .hint { color: #141414; text-shadow: 0 1px 1px rgb(255 255 255/.45); }
-body.wall.light .add .tile { color: #141414; filter: none; }
-body.wall.light .app:hover { background: rgb(255 255 255/.3); box-shadow: inset 0 0 0 1px rgb(0 0 0/.08); }
+body.wall.light .apps .hint { color: #141414; text-shadow: 0 1px 1px rgb(255 255 255/.45); }
+body.wall.light .app { background: rgb(255 255 255/.4); border-color: rgb(0 0 0/.08); }
+body.wall.light .app:hover, body.wall.light .app:focus-visible { background: rgb(255 255 255/.6); border-color: rgb(0 0 0/.12); }
+body.wall.light .add .tile { color: #141414; }
 body.wall.light .customize:hover { background: rgb(255 255 255/.7); }
 .customize:focus:not(:focus-visible) { outline: none; }
 .tone { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-bottom: 8px; padding: 2px; border-radius: var(--r); background: var(--surface); }
@@ -257,20 +261,20 @@ function untilText(u) {
   return 'until ' + day(u);
 }
 const ind = (b) => `<i class="ind ${b ? (b.until === null ? 'forever' : 'timed') : ''}"></i>`;
-const plus = '<svg width="26" height="26" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 4v12M4 10h12"/></svg>';
+const plus = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg>';
 const cross = '<svg width="8" height="8" viewBox="0 0 10 10" stroke="currentColor" stroke-width="1.6"><path d="M2 2l6 6M8 2l-6 6"/></svg>';
 const icon = (url) => 'chrome://favicon2/?size=32&scaleFactor=2x&showFallbackMonogram=&pageUrl=' + encodeURIComponent(url);
 
 function renderApps() {
   const apps = document.getElementById('apps');
   const sites = state.desktop.map((s, i) => `
-    <a class="app" href="${esc(s.url)}" draggable="true" data-id="${esc(s.id)}" data-index="${i}" title="${esc(s.url)}">
+    <a class="app" href="${esc(s.url)}" draggable="true" data-id="${esc(s.id)}" data-index="${i}">
       <span class="tile"><img src="${esc(icon(s.url))}" alt=""></span>
       <span class="label">${esc(s.title || new URL(s.url).hostname)}</span>
       <button class="rm" data-rm="${esc(s.id)}" aria-label="Remove ${esc(s.title)}">${cross}</button>
     </a>`).join('');
   apps.innerHTML = sites + `
-    <button class="app add" id="add" style="border:0;background:none;font:inherit">
+    <button class="app add" id="add" aria-label="Add site">
       <span class="tile">${plus}</span><span class="label">Add site</span>
     </button>` + (state.desktopReady && !state.desktop.length
       ? '<p class="hint">Save a site here with ☆ in the address bar.</p>' : '');
@@ -597,9 +601,10 @@ apps.addEventListener('dragstart', (e) => {
   if (!a) return;
   dragId = a.dataset.id;
   a.classList.add('dragging');
+  apps.classList.add('drag');  // no name pills while dragging
   e.dataTransfer.effectAllowed = 'move';
 });
-apps.addEventListener('dragend', (e) => { dragId = null; clearDrop(); e.target.closest('.app')?.classList.remove('dragging'); });
+apps.addEventListener('dragend', (e) => { dragId = null; clearDrop(); apps.classList.remove('drag'); e.target.closest('.app')?.classList.remove('dragging'); });
 apps.addEventListener('dragover', (e) => {
   if (!dragId) return;
   e.preventDefault();
