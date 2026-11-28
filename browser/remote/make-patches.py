@@ -16,6 +16,12 @@ LOCAL = os.environ.get("MAST_LOCAL_BASE")
 # the first (MAST_KEEP_GOING=1). Every run writes edits.json next to the patches: each edit's
 # patch, upstream file and line here, which tools/rebase-check.mjs reads.
 KEEP_GOING = os.environ.get("MAST_KEEP_GOING") == "1"
+# The tree Mast's patches go on (docs/BASE-PLAN.md): "ungoogled" (pristine Chromium plus
+# ungoogled-chromium's core patches and domain substitution; what Mast ships today) or
+# "chromium" (pristine Chromium, with Mast's own privacy layer from privacy.json instead).
+BASE = os.environ.get("MAST_BASE", "ungoogled")
+assert BASE in ("ungoogled", "chromium"), f"MAST_BASE must be ungoogled or chromium, not {BASE!r}"
+UNGOOGLED = BASE == "ungoogled"
 shutil.rmtree(WORK, ignore_errors=True)
 
 
@@ -69,6 +75,26 @@ def exactly(text, old, new, n):
     c = text.count(old)
     assert c == n, f"anchor found {c}x (want {n}): {old[:70]!r}"
     return text.replace(old, new)
+
+
+def feature_off(text, name):
+    """Every BASE_FEATURE(name, ...) declaration in `text` ships disabled, whatever its
+    platform branches say (Brave's Plaster: set_feature_flag_default_state). Fails if the
+    feature isn't declared here or is already off everywhere (then drop it from
+    privacy.json)."""
+    decl = re.compile(r"BASE_FEATURE\(\s*" + re.escape(name) + r"\s*,.*?\);", re.S)
+    spans = list(decl.finditer(text))
+    assert spans, f"{name} isn't declared here"
+    changed = 0
+    for m in reversed(spans):
+        body = m.group(0)
+        n = body.count("base::FEATURE_ENABLED_BY_DEFAULT")
+        changed += n
+        body = body.replace("base::FEATURE_ENABLED_BY_DEFAULT",
+                            "base::FEATURE_DISABLED_BY_DEFAULT /* Mast: privacy.json */")
+        text = text[:m.start()] + body + text[m.end():]
+    assert changed, f"{name} is already disabled by default: drop it from privacy.json"
+    return text
 
 
 def add_dep(text, target_header, dep):
@@ -170,8 +196,9 @@ edit(H, "content/browser/BUILD.gn", lambda t: add_dep(t, 'source_set("browser") 
 # ungoogled's block-requests.patch makes every component update check return at once without
 # answering, so Widevine's download waited forever (the bar went away, nothing followed).
 # Undone for Mast: the only component ever registered is Widevine, after a yes.
-edit(H, "components/update_client/update_checker.cc", lambda t: unpatch(
-    t, "components/update_client/update_checker.cc", "core/ungoogled-chromium/block-requests.patch"))
+if UNGOOGLED:
+    edit(H, "components/update_client/update_checker.cc", lambda t: unpatch(
+        t, "components/update_client/update_checker.cc", "core/ungoogled-chromium/block-requests.patch"))
 edit(H, "components/infobars/core/infobar_delegate.h", lambda t: once(t,
     '    CONTEXTUAL_CUE_INFOBAR_DELEGATE_IOS = 140,\n  };\n',
     '    CONTEXTUAL_CUE_INFOBAR_DELEGATE_IOS = 140,\n    MAST_WIDEVINE_INFOBAR_DELEGATE = 141,  // Mast: mast_widevine.cc\n'
@@ -1006,14 +1033,16 @@ U = "mast-ungoogled.patch"
 # Google stays the default search engine. Domain substitution rewrote kGoogleHomepageURL
 # (to a dead *.qjz9zk host), and the Google engine's search and suggest URLs are built from
 # this one value. Only searches the user types go to Google; background services stay off.
-edit(U, "components/search_engines/search_terms_data.cc", lambda t: once(t,
-    '  return google_util::kGoogleHomepageURL;\n',
-    '  // Mast: searches the user types still go to Google (see mast-ungoogled.patch).\n  return "https://www.google.com/";\n'))
+if UNGOOGLED:
+    edit(U, "components/search_engines/search_terms_data.cc", lambda t: once(t,
+        '  return google_util::kGoogleHomepageURL;\n',
+        '  // Mast: searches the user types still go to Google (see mast-ungoogled.patch).\n  return "https://www.google.com/";\n'))
 
 # Page preloading off by default. With Google as the search engine, Chromium otherwise
 # prefetches Google's results page (and its trackers) while you type in the omnibox.
-# People can still turn it on in Settings > Performance.
-edit(U, "chrome/browser/preloading/preloading_prefs.cc", lambda t: once(t,
+# People can still turn it on in Settings > Performance. (On pristine Chromium it's part
+# of the privacy layer, mast-privacy.patch.)
+edit(U if UNGOOGLED else "mast-privacy.patch", "chrome/browser/preloading/preloading_prefs.cc", lambda t: once(t,
     '      static_cast<int>(NetworkPredictionOptions::kDefault),\n',
     '      static_cast<int>(NetworkPredictionOptions::kDisabled),  // Mast\n'))
 
@@ -1028,48 +1057,113 @@ edit(U, "chrome/browser/preloading/preloading_prefs.cc", lambda t: once(t,
 W = "mast-webstore.patch"
 DWU = "core/ungoogled-chromium/disable-webstore-urls.patch"
 
-# Undo disable-webstore-urls.patch in these files.
-for path in ("chrome/browser/extensions/chrome_content_browser_client_extensions_part.cc",
-             "chrome/browser/extensions/chrome_content_verifier_delegate.cc",
-             "chrome/browser/extensions/extension_migrator.cc",
-             "chrome/browser/extensions/extension_migrator.h",
-             "extensions/browser/updater/extension_downloader.cc"):
-    edit(W, path, lambda t, path=path: unpatch(t, path, DWU))
+if UNGOOGLED:
+    # Undo disable-webstore-urls.patch in these files.
+    for path in ("chrome/browser/extensions/chrome_content_browser_client_extensions_part.cc",
+                 "chrome/browser/extensions/chrome_content_verifier_delegate.cc",
+                 "chrome/browser/extensions/extension_migrator.cc",
+                 "chrome/browser/extensions/extension_migrator.h",
+                 "extensions/browser/updater/extension_downloader.cc"):
+        edit(W, path, lambda t, path=path: unpatch(t, path, DWU))
 
-# The store's real URLs, and no utm_source tag on store links.
-edit(W, "extensions/common/extension_urls.cc", lambda t: once(once(once(once(once(
-    unpatch(t, "extensions/common/extension_urls.cc", DWU),
-    'const char kChromeWebstoreBaseURL[] = "https://chrome.9oo91e.qjz9zk/webstore";\n',
-    'const char kChromeWebstoreBaseURL[] = "https://chrome.google.com/webstore";\n'),
-    'const char kNewChromeWebstoreBaseURL[] = "https://chromewebstore.9oo91e.qjz9zk/";\n',
-    'const char kNewChromeWebstoreBaseURL[] = "https://chromewebstore.google.com/";\n'),
-    '    "https://clients2.9oo91e.qjz9zk/service/update2/crx";\n',
-    '    "https://clients2.google.com/service/update2/crx";\n'),
-    'const char kChromeWebstoreApiURL[] = "https://chromewebstore.9oo91eapis.qjz9zk/";\n',
-    'const char kChromeWebstoreApiURL[] = "https://chromewebstore.googleapis.com/";\n'),
-    # Store links carry no utm_source tag (which menu or page you came from).
-    '  return net::AppendQueryParameter(url, "utm_source", utm_source_value);\n',
-    '  return url;  // Mast: no tracking tag on store links\n'))
-# The store's Install button: inox's 0005-disable-default-extensions.patch (in ungoogled's
-# series) empties WebstoreInstaller's download and install steps, so a store install was
-# accepted and then never started (the button just spun). Undo that file's part only; the
-# rest of the patch (no default extensions) stays.
-edit(W, "extensions/browser/webstore_installer.cc", lambda t: unpatch(
-    t, "extensions/browser/webstore_installer.cc",
-    "core/inox-patchset/0005-disable-default-extensions.patch"))
-# The store's pages may use the install API (webstorePrivate) and management again.
-edit(W, "extensions/common/api/_api_features.json", lambda t: exactly(t,
-    '    "matches": ["https://chromewebstore.9oo91e.qjz9zk/*"]\n',
-    '    "matches": ["https://chromewebstore.google.com/*"]\n', 2))
-edit(W, "chrome/browser/resources/webstore_app/manifest.json", lambda t: exactly(t,
-    'https://chrome.9oo91e.qjz9zk/webstore', 'https://chrome.google.com/webstore', 2))
-# Links: the extensions page's "Web Store" (empty state) and Settings' current-theme link.
-edit(W, "chrome/app/extensions_strings.grdp", lambda t: once(t,
-    'href="https://chrome.9oo91e.qjz9zk/webstore/category/extensions"',
-    'href="https://chromewebstore.google.com/category/extensions"'))
-edit(W, "chrome/browser/resources/settings/appearance_page/appearance_page.ts", lambda t: once(t,
-    "this.themeUrl_ = 'https://chrome.9oo91e.qjz9zk/webstore/detail/' + themeId;",
-    "this.themeUrl_ = 'https://chromewebstore.google.com/detail/' + themeId;"))
+    # The store's real URLs, and no utm_source tag on store links.
+    edit(W, "extensions/common/extension_urls.cc", lambda t: once(once(once(once(once(
+        unpatch(t, "extensions/common/extension_urls.cc", DWU),
+        'const char kChromeWebstoreBaseURL[] = "https://chrome.9oo91e.qjz9zk/webstore";\n',
+        'const char kChromeWebstoreBaseURL[] = "https://chrome.google.com/webstore";\n'),
+        'const char kNewChromeWebstoreBaseURL[] = "https://chromewebstore.9oo91e.qjz9zk/";\n',
+        'const char kNewChromeWebstoreBaseURL[] = "https://chromewebstore.google.com/";\n'),
+        '    "https://clients2.9oo91e.qjz9zk/service/update2/crx";\n',
+        '    "https://clients2.google.com/service/update2/crx";\n'),
+        'const char kChromeWebstoreApiURL[] = "https://chromewebstore.9oo91eapis.qjz9zk/";\n',
+        'const char kChromeWebstoreApiURL[] = "https://chromewebstore.googleapis.com/";\n'),
+        # Store links carry no utm_source tag (which menu or page you came from).
+        '  return net::AppendQueryParameter(url, "utm_source", utm_source_value);\n',
+        '  return url;  // Mast: no tracking tag on store links\n'))
+    # The store's Install button: inox's 0005-disable-default-extensions.patch (in ungoogled's
+    # series) empties WebstoreInstaller's download and install steps, so a store install was
+    # accepted and then never started (the button just spun). Undo that file's part only; the
+    # rest of the patch (no default extensions) stays.
+    edit(W, "extensions/browser/webstore_installer.cc", lambda t: unpatch(
+        t, "extensions/browser/webstore_installer.cc",
+        "core/inox-patchset/0005-disable-default-extensions.patch"))
+    # The store's pages may use the install API (webstorePrivate) and management again.
+    edit(W, "extensions/common/api/_api_features.json", lambda t: exactly(t,
+        '    "matches": ["https://chromewebstore.9oo91e.qjz9zk/*"]\n',
+        '    "matches": ["https://chromewebstore.google.com/*"]\n', 2))
+    edit(W, "chrome/browser/resources/webstore_app/manifest.json", lambda t: exactly(t,
+        'https://chrome.9oo91e.qjz9zk/webstore', 'https://chrome.google.com/webstore', 2))
+    # Links: the extensions page's "Web Store" (empty state) and Settings' current-theme link.
+    edit(W, "chrome/app/extensions_strings.grdp", lambda t: once(t,
+        'href="https://chrome.9oo91e.qjz9zk/webstore/category/extensions"',
+        'href="https://chromewebstore.google.com/category/extensions"'))
+    edit(W, "chrome/browser/resources/settings/appearance_page/appearance_page.ts", lambda t: once(t,
+        "this.themeUrl_ = 'https://chrome.9oo91e.qjz9zk/webstore/detail/' + themeId;",
+        "this.themeUrl_ = 'https://chromewebstore.google.com/detail/' + themeId;"))
+else:
+    # Pristine Chromium: the store already works (nothing to undo); only the tracking tag
+    # on store links goes.
+    edit(W, "extensions/common/extension_urls.cc", lambda t: once(t,
+        '  return net::AppendQueryParameter(url, "utm_source", utm_source_value);\n',
+        '  return url;  // Mast: no tracking tag on store links\n'))
+
+# ---------------------------------------------------------------- privacy
+# Pristine Chromium only (MAST_BASE=chromium): every Google service Mast turns off, the way
+# Brave does, generated from privacy.json (the list, with a reason for each). On the
+# ungoogled base, ungoogled-chromium's patches do this instead.
+P = "mast-privacy.patch"
+PRIVACY = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "privacy.json")))
+
+
+def privacy_edit(path, fn):
+    """privacy.json's entries, grouped per file: one edit per upstream file, so a file
+    changed by several entries builds on itself (and on the edits.json line of this one)."""
+    edit(P, path, fn)
+
+
+if not UNGOOGLED:
+    by_file = {}
+    for f in PRIVACY["features_off"]:
+        by_file.setdefault(f["file"], []).append(lambda t, f=f: feature_off(t, f["feature"]))
+    for s in PRIVACY["stubs"]:
+        by_file.setdefault(s["file"], []).append(lambda t, s=s: once(
+            t, s["at"], s["at"] + "  // Mast: privacy.json\n" + s["insert"]))
+    for r in PRIVACY["replace"]:
+        by_file.setdefault(r["file"], []).append(lambda t, r=r: once(
+            t, r["old"], r["new"].rstrip("\n") + "  // Mast: privacy.json\n"))
+    for path, fns in by_file.items():
+        def apply(t, fns=fns):
+            for fn in fns:
+                t = fn(t)
+            return t
+        privacy_edit(path, apply)
+
+    # Command-line switches, appended at startup unless given already (Brave sets its own in
+    # app/brave_main_delegate.cc).
+    def switch_line(s):
+        name, value = s["switch"], s.get("value")
+        add = (f'AppendSwitchASCII("{name}", "{value}")' if value is not None
+               else f'AppendSwitch("{name}")')
+        return f'    if (!mast_command_line->HasSwitch("{name}")) {{\n      mast_command_line->{add};\n    }}\n'
+    privacy_edit("chrome/app/chrome_main_delegate.cc", lambda t: once(t,
+        "std::optional<int> ChromeMainDelegate::BasicStartupComplete() {\n",
+        "std::optional<int> ChromeMainDelegate::BasicStartupComplete() {\n"
+        "  // Mast: switches from privacy.json.\n  {\n"
+        "    base::CommandLine* mast_command_line = base::CommandLine::ForCurrentProcess();\n"
+        + "".join(switch_line(s) for s in PRIVACY["switches"]) + "  }\n"))
+
+    # Profile pref defaults, set once every profile pref is registered (Brave:
+    # OverrideDefaultPrefValues in browser/brave_profile_prefs.cc). Each pref name must
+    # still be declared where privacy.json says.
+    def pref_line(pref):
+        decl = pristine(pref["declared_in"])
+        assert f'"{pref["pref"]}"' in decl, f'{pref["pref"]} is no longer declared in {pref["declared_in"]}'
+        return f'  registry->SetDefaultPrefValue("{pref["pref"]}", base::Value({json.dumps(pref["value"])}));\n'
+    privacy_edit("chrome/browser/prefs/browser_prefs.cc", lambda t: once(t,
+        "  ash::TokenHandleStoreImpl::RegisterPrefs(registry);\n#endif\n}\n",
+        "  ash::TokenHandleStoreImpl::RegisterPrefs(registry);\n#endif\n"
+        "  // Mast: privacy.json's pref defaults.\n"
+        + "".join(pref_line(pref) for pref in PRIVACY["profile_prefs"]) + "}\n"))
 
 os.makedirs(WORK, exist_ok=True)
 json.dump(EDITS, open(os.path.join(WORK, "edits.json"), "w"), indent=1)

@@ -157,10 +157,13 @@ Each step ends with Mast working; nothing is removed before its replacement is p
 1. **Baseline audit** (free locally; runs on the next build): add the network-audit phase
    to `./mast shots` and record what today's ungoogled build sends. This is the bar the new
    base has to meet.
-2. **Write the Mast privacy layer** (free): `privacy.json`, the helpers and the edits, applied
-   on top of today's ungoogled base, where they're harmless duplicates. `./mast
-   check-patches` verifies every anchor against pristine Chromium too, using
-   `tools/base-file.mjs` with ungoogled switched off.
+2. **Write the Mast privacy layer** (free). **Done 2026-11-28.** `browser/privacy.json`
+   lists what's off and why; `make-patches.py` turns it into `mast-privacy.patch` when
+   `MAST_BASE=chromium` (pristine Chromium; `tools/base-file.mjs` has the same switch). The
+   edits that undo ungoogled (Web Store, update checker, Google's base URL) only run on the
+   ungoogled base. `./mast check-patches` now checks both bases: today's patches come out
+   byte-identical, and on pristine Chromium every edit applies, the privacy layer being 22
+   files and 39 added lines (ungoogled changes ≈7,900). Not compiled yet.
 3. **Switch the base** (one long build, roughly 3–6 hours on the `cpx62`, about $1–2): a
    `MAST_BASE=chromium` setting makes `ungoogle.sh` skip ungoogled; `safe_browsing_mode = 1`;
    ungoogled's `flags.gn` replaced by Mast's own args. Run the audit and compare with step 1;

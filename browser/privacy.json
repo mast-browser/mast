@@ -1,0 +1,124 @@
+{
+  "about": "Every Google service Mast turns off on pristine Chromium (MAST_BASE=chromium; docs/BASE-PLAN.md), and why. remote/make-patches.py turns this file into mast-privacy.patch; each entry must still match Chromium (./mast check-patches), so a release that moves or drops one fails loudly. The 'brave' notes say how Brave handles the same service (brave-core master, 2026-11-27).",
+
+  "features_off": [
+    {"feature": "kNetworkTimeServiceQuerying", "file": "components/network_time/network_time_tracker.cc",
+     "why": "Asks Google for the time. Mast's clock-proof blocks will use a Mast time server instead.",
+     "brave": "Same: rewrite/components/network_time/network_time_tracker.cc.yaml"},
+    {"feature": "kAutofillServerCommunication", "file": "components/autofill/core/common/autofill_debug_features.cc",
+     "why": "Sends form structure to Google for field predictions.",
+     "brave": "Same: rewrite/components/autofill/core/common/autofill_debug_features.cc.yaml"},
+    {"feature": "kBrowsingTopics", "file": "services/network/public/cpp/features.cc",
+     "why": "Topics API: interest-based ads from browsing history.",
+     "brave": "Same: network::features::kBrowsingTopics in app/feature_defaults_unittest.cc"},
+    {"feature": "kConversionMeasurement", "file": "components/attribution_reporting/features.cc",
+     "why": "Attribution Reporting API: ad conversion measurement.",
+     "brave": "Same: attribution_reporting::features::kConversionMeasurement"},
+    {"feature": "kEnforcePrivacySandboxAttestations", "file": "components/privacy_sandbox/privacy_sandbox_features.cc",
+     "why": "Downloads the Privacy Sandbox attestation list from Google.",
+     "brave": "Same: rewrite/components/privacy_sandbox/privacy_sandbox_features.cc.yaml"},
+    {"feature": "kOptimizationHints", "file": "components/optimization_guide/core/optimization_guide_features.cc",
+     "why": "Fetches per-site hints from Google.",
+     "brave": "Same: rewrite/components/optimization_guide/core/optimization_guide_features.cc.yaml"},
+    {"feature": "kOptimizationGuideModelExecution", "file": "components/optimization_guide/core/optimization_guide_features.cc",
+     "why": "Runs Google's server-side AI models (Gemini features).",
+     "brave": "Same"},
+    {"feature": "kOptimizationGuideFetchingForSRP", "file": "components/optimization_guide/core/optimization_guide_features.cc",
+     "why": "Fetches hints for search results pages.",
+     "brave": "Same"},
+    {"feature": "kLensOverlay", "file": "components/lens/lens_features.cc",
+     "why": "Google Lens: sends screenshots of the page to Google.",
+     "brave": "Same: lens::features::kLensOverlay"},
+    {"feature": "kAimEnabled", "file": "components/omnibox/browser/aim_eligibility_service_features.cc",
+     "why": "AI Mode in the address bar (Google's AI search).",
+     "brave": "Same: rewrite/components/omnibox/browser/aim_eligibility_service_features.cc.yaml"},
+    {"feature": "kChromeStructuredMetrics", "file": "chrome/common/chrome_features.cc",
+     "why": "Structured usage metrics for Google.",
+     "brave": "Same: rewrite/chrome/common/chrome_features.cc.yaml"},
+    {"feature": "kStructuredMetrics", "file": "components/metrics/metrics_features.cc",
+     "why": "Structured usage metrics for Google.",
+     "brave": "Same: metrics::features::kStructuredMetrics"},
+    {"feature": "kTranslateRankerQuery", "file": "components/translate/core/browser/translate_ranker_impl.cc",
+     "why": "Downloads Google's model that decides when to offer translation.",
+     "brave": "Stubs RankerURLFetcher::Request instead"}
+  ],
+
+  "stubs": [
+    {"file": "components/variations/variations_ids_provider.cc",
+     "at": "VariationsIdsProvider::GetClientDataHeaders(bool is_signed_in) {\n",
+     "insert": "  return nullptr;\n",
+     "why": "The X-Client-Data header: which experiments this browser is in, sent to Google sites.",
+     "brave": "Same: chromium_src/components/variations/variations_ids_provider.h"},
+    {"file": "components/variations/service/variations_service.cc",
+     "at": "void VariationsService::DoActualFetch() {\n",
+     "insert": "  return;\n",
+     "why": "Downloads Google's field-trial configuration (the variations seed).",
+     "brave": "Reroutes it to variations.brave.com, signed with Brave's key"},
+    {"file": "components/gcm_driver/gcm_driver_desktop.cc",
+     "at": "GCMClient::Result GCMDriverDesktop::EnsureStarted(\n    GCMClient::StartMode start_mode) {\n",
+     "insert": "  return GCMClient::GCM_DISABLED;\n",
+     "why": "Google Cloud Messaging: a standing connection to Google for push messages.",
+     "brave": "Off by default with an opt-in (BraveGCMDriverDesktop)"},
+    {"file": "components/metrics/enabled_state_provider.cc",
+     "at": "bool EnabledStateProvider::IsReportingEnabled() const {\n",
+     "insert": "  return false;\n",
+     "why": "Usage statistics (UMA) and crash reports to Google.",
+     "brave": "Same: chromium_src/components/metrics/enabled_state_provider.cc"},
+    {"file": "components/optimization_guide/core/optimization_guide_permissions_util.cc",
+     "at": "bool IsUserPermittedToFetchFromRemoteOptimizationGuide(\n    bool is_off_the_record,\n    PrefService* pref_service) {\n",
+     "insert": "  return false;\n",
+     "why": "Any remaining optimization-guide fetch from Google.",
+     "brave": "Same: chromium_src/components/optimization_guide/core/optimization_guide_permissions_util.cc"},
+    {"file": "chrome/browser/glic/public/glic_enabling.cc",
+     "at": "bool GlicGlobalEnabling::IsEnabledByGlobalCriteria() const {\n",
+     "insert": "  return false;\n",
+     "why": "Gemini in Chrome. Off on every platform, even if a field trial turns kGlic on.",
+     "brave": "Same: rewrite/chrome/browser/glic/public/glic_enabling.cc.yaml"},
+    {"file": "components/translate/core/browser/translate_language_list.cc",
+     "at": "void TranslateLanguageList::SetResourceRequestsAllowed(bool allowed) {\n",
+     "insert": "  allowed = false;\n",
+     "why": "Downloads Google Translate's language list at startup.",
+     "brave": "Gates the same fetch: chromium_src/components/translate/core/browser/translate_language_list.cc"}
+  ],
+
+  "replace": [
+    {"file": "chrome/browser/domain_reliability/service_factory.cc",
+     "old": "const bool kDefaultEnabled = true;\n",
+     "new": "const bool kDefaultEnabled = false;\n",
+     "why": "Domain Reliability: reports failed requests to Google sites back to Google.",
+     "brave": "The --disable-domain-reliability switch (app/brave_main_delegate.cc)"}
+  ],
+
+  "switches": [
+    {"switch": "lso-url", "value": "https://no-thanks.invalid",
+     "why": "Google sign-in (Gaia) endpoints. Mast has no sign-in.",
+     "brave": "Same: app/brave_main_delegate.cc"}
+  ],
+
+  "profile_prefs": [
+    {"pref": "safebrowsing.enabled", "value": false, "declared_in": "components/safe_browsing/core/common/safe_browsing_prefs.h",
+     "why": "Safe Browsing is compiled in (safe_browsing_mode = 1) but off until Mast chooses how to offer it.",
+     "brave": "On, through its proxy safebrowsing.brave.com"},
+    {"pref": "translate.enabled", "value": false, "declared_in": "components/translate/core/browser/translate_pref_names.h",
+     "why": "Page translation sends page text to Google. Off by default; Settings can turn it on.",
+     "brave": "On, through translate.brave.com"}
+  ],
+
+  "args": {
+    "safe_browsing_mode": {"value": 1, "why": "Compiled in, off by pref: no rebasing ungoogled's 5,600 lines to compile it out", "brave": "Same: build/args/desktop_defaults.gni"},
+    "disable_fieldtrial_testing_config": {"value": true, "why": "No built-in field trial configs", "brave": "Same: build/args/brave_defaults.gni"},
+    "google_api_key": {"value": "", "why": "No Google API keys: keyed services can't authenticate"},
+    "google_default_client_id": {"value": "", "why": "No Google sign-in client"},
+    "google_default_client_secret": {"value": "", "why": "No Google sign-in client"},
+    "enable_hangout_services_extension": {"value": false, "why": "Google Meet's helper extension, the only user of WebRTC log uploads"},
+    "enable_remoting": {"value": false, "why": "Chrome Remote Desktop"},
+    "enable_reporting": {"value": false, "why": "Reporting API uploads"}
+  },
+
+  "upstream_already": [
+    {"what": "Crash report uploads", "why": "CrashReporterClient::GetUploadUrl() is empty unless the build is Google Chrome branded and official."},
+    {"what": "RLZ (Windows, macOS)", "why": "enable_rlz is only true for Google Chrome branded builds."},
+    {"what": "New tab page modules and the One Google bar", "why": "Mast's own new tab page replaces Chromium's."},
+    {"what": "Sync", "why": "Needs Google API keys and sign-in, both off."}
+  ]
+}

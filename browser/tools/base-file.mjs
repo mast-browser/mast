@@ -11,6 +11,8 @@
 //
 // MAST_CHROMIUM_VERSION and MAST_UNGOOGLED_TAG pick another release than the pinned one
 // (./mast check-rebase uses them to look at the next release before moving to it).
+// MAST_BASE=chromium gives pristine Chromium instead: no ungoogled patches and no domain
+// substitution (docs/BASE-PLAN.md), cached apart from the ungoogled base.
 // MAST_ALLOW_MISSING=1 prints "-" for a file Chromium's source doesn't have (generated or
 // from another repo) instead of failing.
 //
@@ -27,7 +29,8 @@ const version = process.env.MAST_CHROMIUM_VERSION
 const ugTag = process.env.MAST_UNGOOGLED_TAG
   || fs.readFileSync(path.join(root, 'ungoogled_version.txt'), 'utf8').trim();
 const cache = path.join(os.homedir(), '.cache/mast');
-const baseDir = path.join(cache, 'base', `${version}+${ugTag}-sub`);
+const pristine = process.env.MAST_BASE === 'chromium';
+const baseDir = path.join(cache, 'base', pristine ? `${version}-chromium` : `${version}+${ugTag}-sub`);
 const ugDir = path.join(cache, 'ungoogled', ugTag);
 
 const list = (f) => fs.readFileSync(path.join(root, 'patches', f), 'utf8')
@@ -113,6 +116,7 @@ async function baseFile(file) {
   const text = Buffer.from(await (await get(url)).text(), 'base64').toString('utf8');
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, text);
+  if (pristine) return out;
   for (const name of await ungoogledSeries()) {
     const section = sectionFor(fs.readFileSync(path.join(ugDir, 'p', name), 'utf8'), file);
     if (!section) continue;
